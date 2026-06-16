@@ -331,3 +331,53 @@ def test_reimport_objectives_invalidates_calculated_results(tmp_path):
         ("E001", "HR_PENDING", None, None, None, None),
         ("E002", "HR_PENDING", None, None, None, None),
     ]
+
+
+def prepare_calculated_cycle(client, app):
+    seed_two_reports(client)
+    move_two_reports_to_hr_pending(client, app)
+    import_objectives(client)
+    response = client.post("/cycles/1/calculate", headers={"X-Operator-Id": "hr001", "X-Operator-Name": "HR"})
+    assert response.status_code == 200
+
+
+def test_finalize_results_locks_status_but_allows_audited_final_adjustment(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+    prepare_calculated_cycle(client, app)
+    e001_record_id = record_id(app, "E001")
+
+    finalized = client.post(
+        "/cycles/1/results/finalize",
+        headers={"X-Operator-Id": "hr001", "X-Operator-Name": "HR"},
+    )
+
+    assert finalized.status_code == 200
+    assert finalized.get_json() == {"updated_count": 2}
+
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        status_rows = connection.execute(
+            "select emp_id, status from evaluation_record where emp_id in ('E001', 'E002') order by emp_id"
+        ).fetchall()
+        before_score = connection.execute("select weighted_score from evaluation_record where emp_id = 'E001'").fetchone()[0]
+    assert status_rows == [("E001", "FINAL_CONFIRMED"), ("E002", "FINAL_CONFIRMED")]
+
+    adjusted = client.post(
+        f"/records/{e001_record_id}/final-level",
+        json={"final_level": "A", "reason": "最终确认后微调"},
+        headers={"X-Operator-Id": "hr001", "X-Operator-Name": "HR"},
+    )
+    assert adjusted.status_code == 200
+    assert adjusted.get_json()["record"]["final_level"] == "A"
+
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        after_row = connection.execute(
+            "select status, weighted_score, final_level from evaluation_record where emp_id = 'E001'"
+        ).fetchone()
+        finalize_audit_count = connection.execute("select count(*) from audit_log where action = 'FINALIZE_RESULTS'").fetchone()[0]
+        adjustment = connection.execute(
+            "select stage, adjustment_type, field_name, before_value, after_value, reason from grade_adjustment_log order by id desc limit 1"
+        ).fetchone()
+    assert after_row == ("FINAL_CONFIRMED", before_score, "A")
+    assert finalize_audit_count == 1
+    assert adjustment == ("HR", "FINAL_LEVEL", "final_level", "B+", "A", "最终确认后微调")

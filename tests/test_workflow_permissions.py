@@ -11,6 +11,7 @@ def test_next_status_allows_core_review_flow():
     assert next_status("INDIRECT_PENDING", "submit_indirect") == "DEPT_HEAD_PENDING"
     assert next_status("DEPT_HEAD_PENDING", "submit_dept_head") == "HR_PENDING"
     assert next_status("HR_PENDING", "calculate") == "INITIAL_CALCULATED"
+    assert next_status("INITIAL_CALCULATED", "finalize") == "FINAL_CONFIRMED"
 
 
 def test_next_status_rejects_invalid_transition():

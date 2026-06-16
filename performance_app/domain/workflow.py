@@ -10,6 +10,7 @@ TRANSITIONS = {
     ("INDIRECT_PENDING", "submit_indirect"): "DEPT_HEAD_PENDING",
     ("DEPT_HEAD_PENDING", "submit_dept_head"): "HR_PENDING",
     ("HR_PENDING", "calculate"): "INITIAL_CALCULATED",
+    ("INITIAL_CALCULATED", "finalize"): "FINAL_CONFIRMED",
 }
 
 WITHDRAW_TARGETS = {

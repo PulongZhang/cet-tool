@@ -7,6 +7,7 @@ from performance_app.services.calculation_runner import (
     adjust_final_level,
     calculate_cycle,
     calculation_detail,
+    finalize_cycle_results,
     list_cycle_results,
 )
 
@@ -27,6 +28,14 @@ def calculate_results(cycle_id: int):
 @bp.get("/cycles/<int:cycle_id>/results")
 def cycle_results(cycle_id: int):
     return jsonify({"records": list_cycle_results(cycle_id)})
+
+
+@bp.post("/cycles/<int:cycle_id>/results/finalize")
+def finalize_results(cycle_id: int):
+    operator_id = request.headers.get("X-Operator-Id", "system")
+    operator_name = request.headers.get("X-Operator-Name", operator_id)
+    updated_count = finalize_cycle_results(cycle_id, operator_id, operator_name)
+    return jsonify({"updated_count": updated_count})
 
 
 @bp.get("/records/<int:record_id>/calculation-detail")

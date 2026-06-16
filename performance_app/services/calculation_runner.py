@@ -156,6 +156,28 @@ def calculation_detail(record_id: int) -> dict | None:
     }
 
 
+def finalize_cycle_results(cycle_id: int, operator_id: str, operator_name: str) -> int:
+    cursor = get_db().execute(
+        """
+        update evaluation_record
+        set status = ?, updated_at = datetime('now')
+        where cycle_id = ? and status = ?
+        """,
+        (FINAL_STATUS, cycle_id, CALCULATED_STATUS),
+    )
+    write_audit_log(
+        action="FINALIZE_RESULTS",
+        target_type="evaluation_cycle",
+        target_id=cycle_id,
+        operator_id=operator_id,
+        operator_name=operator_name,
+        cycle_id=cycle_id,
+        after_snapshot={"updated_count": cursor.rowcount},
+    )
+    get_db().commit()
+    return cursor.rowcount
+
+
 def adjust_final_level(record_id: int, final_level: str, reason: str, operator_id: str, operator_name: str) -> dict:
     if final_level not in GRADES:
         raise ValueError(f"Unsupported grade: {final_level}")
