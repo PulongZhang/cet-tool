@@ -10,13 +10,14 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config.from_mapping(
         SECRET_KEY="dev-only-change-before-production",
         DATABASE=str(Path("data") / "performance_review.sqlite3"),
+        EXPORT_DIR=str(Path("exports")),
     )
 
     if test_config:
         app.config.update(test_config)
 
     from performance_app import db
-    from performance_app.routes import auth, cycles, employees, health, objective, records, results, reviews
+    from performance_app.routes import auth, cycles, employees, exports, health, objective, records, results, reviews
 
     db.init_app(app)
     app.register_blueprint(health.bp)
@@ -27,4 +28,5 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(reviews.bp)
     app.register_blueprint(objective.bp)
     app.register_blueprint(results.bp)
+    app.register_blueprint(exports.bp)
     return app

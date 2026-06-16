@@ -1,4 +1,7 @@
 import sqlite3
+from io import BytesIO
+
+from openpyxl import load_workbook
 
 from performance_app import create_app
 
@@ -325,3 +328,55 @@ def test_hr_final_level_adjustment_requires_reason_and_writes_log(tmp_path):
             "select stage, adjustment_type, field_name, before_value, after_value, reason from grade_adjustment_log"
         ).fetchone()
     assert adjustment == ("HR", "FINAL_LEVEL", "final_level", "B+", "A", "HR 最终微调")
+
+
+def prepare_calculated_cycle(client, app):
+    seed_people(client)
+    first_record_id = move_employee_to_hr_pending(client, app, "E001")
+    move_employee_to_hr_pending(client, app, "E002")
+    import_valid_objectives(client)
+    client.post("/cycles/1/calculate", headers={"X-Operator-Id": "hr001", "X-Operator-Name": "HR"})
+    return first_record_id
+
+
+def test_export_initial_and_final_results_to_xlsx(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+    first_record_id = prepare_calculated_cycle(client, app)
+
+    initial_export = client.post(
+        "/cycles/1/exports/initial",
+        headers={"X-Operator-Id": "hr001", "X-Operator-Name": "HR"},
+    )
+    assert initial_export.status_code == 200
+    assert initial_export.get_json()["export"]["export_id"] == "cycle-1-initial"
+
+    initial_download = client.get("/exports/cycle-1-initial/download")
+    assert initial_download.status_code == 200
+    initial_workbook = load_workbook(BytesIO(initial_download.data))
+    assert initial_workbook.sheetnames == ["结果总览"]
+    initial_rows = list(initial_workbook["结果总览"].iter_rows(values_only=True))
+    assert initial_rows[0] == ("工号", "姓名", "部门", "分组", "加权分", "组内排名", "组内人数", "系统建议等级", "最终等级")
+    assert initial_rows[1] == ("E001", "李四", "平台研发部", "EMPLOYEE_P4_10", 89.9, 1, 2, "B+", "B+")
+
+    client.post(
+        f"/records/{first_record_id}/final-level",
+        json={"final_level": "A", "reason": "HR 最终微调"},
+        headers={"X-Operator-Id": "hr001", "X-Operator-Name": "HR"},
+    )
+    final_export = client.post(
+        "/cycles/1/exports/final",
+        headers={"X-Operator-Id": "hr001", "X-Operator-Name": "HR"},
+    )
+    assert final_export.status_code == 200
+    assert final_export.get_json()["export"]["export_id"] == "cycle-1-final"
+
+    final_download = client.get("/exports/cycle-1-final/download")
+    assert final_download.status_code == 200
+    final_workbook = load_workbook(BytesIO(final_download.data))
+    final_rows = list(final_workbook["结果总览"].iter_rows(values_only=True))
+    assert final_rows[1] == ("E001", "李四", "平台研发部", "EMPLOYEE_P4_10", 89.9, 1, 2, "B+", "A")
+
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        audit_count = connection.execute("select count(*) from audit_log where action = 'EXPORT_EXCEL'").fetchone()[0]
+    assert audit_count == 2
