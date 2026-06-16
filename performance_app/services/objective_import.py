@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from performance_app.db import get_db
+from performance_app.domain.constants import GRADES
 from performance_app.domain.objectives import (
     diligence_level_from_quarter_total,
     discipline_level_from_exception_count,
@@ -31,6 +32,7 @@ def import_objective_rows(cycle_id: int, file_name: str, rows: list[dict], opera
     apply_learning_ranks(valid_rows)
     for row in valid_rows:
         upsert_objective_data(cycle_id, row)
+    invalidate_calculated_results(cycle_id, [row["emp_id"] for row in valid_rows])
 
     update_import_batch_counts(batch_id, len(valid_rows), len(errors))
     write_audit_log(
@@ -174,6 +176,73 @@ def upsert_objective_data(cycle_id: int, row: dict) -> None:
             row["learning_level"],
         ),
     )
+
+
+def get_objective(objective_id: int) -> dict | None:
+    row = get_db().execute("select * from objective_data where id = ?", (objective_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def correct_objective_data(objective_id: int, updates: dict, reason: str, operator_id: str, operator_name: str) -> dict:
+    objective = get_objective(objective_id)
+    if objective is None:
+        raise LookupError("objective data not found")
+
+    allowed_fields = {"diligence_level", "discipline_level", "learning_level"}
+    normalized_updates = {
+        field: value
+        for field, value in updates.items()
+        if field in allowed_fields and value
+    }
+    if not normalized_updates:
+        raise ValueError("at least one objective level is required")
+    for field, value in normalized_updates.items():
+        if value not in GRADES:
+            raise ValueError(f"Unsupported grade for {field}: {value}")
+
+    set_clause = ", ".join(f"{field} = ?" for field in normalized_updates)
+    params = [*normalized_updates.values(), reason, objective_id]
+    get_db().execute(
+        f"""
+        update objective_data
+        set {set_clause}, corrected = 1, correction_reason = ?, updated_at = datetime('now')
+        where id = ?
+        """,
+        params,
+    )
+    invalidate_calculated_results(objective["cycle_id"], [objective["emp_id"]])
+    corrected = get_objective(objective_id)
+    write_audit_log(
+        action="CORRECT_OBJECTIVE_DATA",
+        target_type="objective_data",
+        target_id=objective_id,
+        operator_id=operator_id,
+        operator_name=operator_name,
+        cycle_id=objective["cycle_id"],
+        before_snapshot={field: objective.get(field) for field in normalized_updates},
+        after_snapshot={field: corrected.get(field) for field in normalized_updates},
+        reason=reason,
+    )
+    get_db().commit()
+    return corrected
+
+
+def invalidate_calculated_results(cycle_id: int, emp_ids: list[str]) -> int:
+    if not emp_ids:
+        return 0
+    placeholders = ", ".join("?" for _ in emp_ids)
+    cursor = get_db().execute(
+        f"""
+        update evaluation_record
+        set status = 'HR_PENDING', weighted_score = null, rank_in_group = null, rank_total = null,
+            suggested_level = null, final_level = null, updated_at = datetime('now')
+        where cycle_id = ?
+          and emp_id in ({placeholders})
+          and status in ('INITIAL_CALCULATED', 'FINAL_CONFIRMED')
+        """,
+        (cycle_id, *emp_ids),
+    )
+    return cursor.rowcount
 
 
 def row_error(row_number: int, emp_id: str | None, field_name: str, error_message: str) -> dict:

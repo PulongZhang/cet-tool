@@ -232,3 +232,102 @@ def test_indirect_and_dept_submit_require_full_scope_ready(tmp_path):
         "error": "not all scoped records are ready to submit",
         "blocking_records": [{"record_id": record_id(app, "E002"), "emp_id": "E002", "status": "INDIRECT_PENDING"}],
     }
+
+
+def move_two_reports_to_hr_pending(client, app):
+    for emp_id in ("E001", "E002"):
+        submit_self(client, app, emp_id)
+        save_manager_draft(client, app, emp_id)
+    client.post(
+        "/records/direct-reports/submit",
+        json={"cycle_id": 1},
+        headers={"X-User-Id": str(user_id(app, "M001"))},
+    )
+    client.post("/reviews/indirect/submit", json={"cycle_id": 1}, headers={"X-User-Id": str(user_id(app, "M002"))})
+    client.post("/reviews/dept-head/submit", json={"cycle_id": 1}, headers={"X-User-Id": str(user_id(app, "M003"))})
+
+
+def objective_rows():
+    return [
+        {
+            "emp_id": "E001",
+            "diligence_month_1": 60,
+            "diligence_month_2": 66,
+            "diligence_month_3": 54,
+            "attendance_exception_count": 4,
+            "log_exception_count": 3,
+            "learning_hours": 20,
+        },
+        {
+            "emp_id": "E002",
+            "diligence_month_1": 35,
+            "diligence_month_2": 40,
+            "diligence_month_3": 45,
+            "attendance_exception_count": 8,
+            "log_exception_count": 5,
+            "learning_hours": 10,
+        },
+    ]
+
+
+def import_objectives(client):
+    return client.post("/objective/import", json={"cycle_id": 1, "file_name": "objective.xlsx", "rows": objective_rows()})
+
+
+def objective_id(app, emp_id):
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        return connection.execute("select id from objective_data where emp_id = ?", (emp_id,)).fetchone()[0]
+
+
+def test_objective_correction_requires_reason_and_audits(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+    seed_two_reports(client)
+    import_objectives(client)
+    e001_objective_id = objective_id(app, "E001")
+
+    missing_reason = client.post(f"/objective/{e001_objective_id}/correct", json={"diligence_level": "B"})
+    assert missing_reason.status_code == 400
+    assert missing_reason.get_json() == {"error": "reason and at least one objective level are required"}
+
+    corrected = client.post(
+        f"/objective/{e001_objective_id}/correct",
+        json={"diligence_level": "B", "learning_level": "A", "reason": "中途入职人工修正"},
+        headers={"X-Operator-Id": "hr001", "X-Operator-Name": "HR"},
+    )
+
+    assert corrected.status_code == 200
+    assert corrected.get_json()["objective"]["diligence_level"] == "B"
+    assert corrected.get_json()["objective"]["learning_level"] == "A"
+    assert corrected.get_json()["objective"]["corrected"] == 1
+
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        row = connection.execute(
+            "select diligence_level, learning_level, corrected, correction_reason from objective_data where id = ?",
+            (e001_objective_id,),
+        ).fetchone()
+        audit_count = connection.execute("select count(*) from audit_log where action = 'CORRECT_OBJECTIVE_DATA'").fetchone()[0]
+    assert row == ("B", "A", 1, "中途入职人工修正")
+    assert audit_count == 1
+
+
+def test_reimport_objectives_invalidates_calculated_results(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+    seed_two_reports(client)
+    move_two_reports_to_hr_pending(client, app)
+    import_objectives(client)
+    calculated = client.post("/cycles/1/calculate", headers={"X-Operator-Id": "hr001", "X-Operator-Name": "HR"})
+    assert calculated.status_code == 200
+
+    reimported = import_objectives(client)
+    assert reimported.status_code == 200
+
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        rows = connection.execute(
+            "select emp_id, status, weighted_score, rank_in_group, suggested_level, final_level from evaluation_record where emp_id in ('E001', 'E002') order by emp_id"
+        ).fetchall()
+    assert rows == [
+        ("E001", "HR_PENDING", None, None, None, None),
+        ("E002", "HR_PENDING", None, None, None, None),
+    ]
