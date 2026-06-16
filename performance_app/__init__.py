@@ -15,7 +15,9 @@ def create_app(test_config: dict | None = None) -> Flask:
     if test_config:
         app.config.update(test_config)
 
+    from performance_app import db
     from performance_app.routes import health
 
+    db.init_app(app)
     app.register_blueprint(health.bp)
     return app
