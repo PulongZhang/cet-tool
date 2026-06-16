@@ -16,7 +16,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         app.config.update(test_config)
 
     from performance_app import db
-    from performance_app.routes import auth, cycles, employees, health, records, reviews
+    from performance_app.routes import auth, cycles, employees, health, objective, records, reviews
 
     db.init_app(app)
     app.register_blueprint(health.bp)
@@ -25,4 +25,5 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(employees.bp)
     app.register_blueprint(records.bp)
     app.register_blueprint(reviews.bp)
+    app.register_blueprint(objective.bp)
     return app
