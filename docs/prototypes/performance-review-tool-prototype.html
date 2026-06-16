@@ -1,0 +1,992 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>季度绩效考核评分工具 V1 原型</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #172033;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --primary: #2563eb;
+      --primary-soft: #eff6ff;
+      --green: #16a34a;
+      --orange: #f59e0b;
+      --red: #dc2626;
+      --purple: #7c3aed;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 248px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #111827;
+      color: #fff;
+      padding: 22px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.35;
+      margin-bottom: 24px;
+    }
+
+    .brand small {
+      display: block;
+      color: #9ca3af;
+      font-weight: 400;
+      margin-top: 6px;
+    }
+
+    .nav button {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: #d1d5db;
+      text-align: left;
+      border-radius: 10px;
+      padding: 11px 12px;
+      margin: 4px 0;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .nav button:hover,
+    .nav button.active {
+      background: #1f2937;
+      color: #fff;
+    }
+
+    .main {
+      padding: 24px 28px 48px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .title h1 {
+      font-size: 26px;
+      margin: 0 0 8px;
+    }
+
+    .title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .userbox {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      min-width: 230px;
+      box-shadow: var(--shadow);
+      font-size: 13px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--primary-soft);
+      color: var(--primary);
+      margin: 2px 4px 2px 0;
+    }
+
+    .tag.green { background: #ecfdf5; color: var(--green); }
+    .tag.orange { background: #fffbeb; color: #b45309; }
+    .tag.red { background: #fef2f2; color: var(--red); }
+    .tag.gray { background: #f3f4f6; color: #4b5563; }
+    .tag.purple { background: #f5f3ff; color: var(--purple); }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .card h2,
+    .card h3 {
+      margin: 0 0 12px;
+    }
+
+    .card h2 { font-size: 20px; }
+    .card h3 { font-size: 16px; }
+
+    .metric {
+      font-size: 28px;
+      font-weight: 750;
+      margin: 8px 0 2px;
+    }
+
+    .muted { color: var(--muted); }
+
+    .btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 13px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn.green { background: var(--green); color: #fff; border-color: var(--green); }
+    .btn.red { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      color: #4b5563;
+      font-weight: 700;
+      background: #f9fafb;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 12px 14px;
+      align-items: start;
+      font-size: 14px;
+    }
+    .label { color: #374151; font-weight: 650; padding-top: 9px; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      background: #fff;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 4px 0 12px;
+    }
+    .step {
+      min-width: 132px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+    }
+    .step.done { border-color: #86efac; background: #f0fdf4; }
+    .step.active { border-color: #93c5fd; background: #eff6ff; }
+    .arrow { color: #9ca3af; }
+
+    .progressbar {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progressbar span { display: block; height: 100%; background: var(--primary); }
+    .progressbar.orange span { background: var(--orange); }
+    .progressbar.red span { background: var(--red); }
+    .progressbar.green span { background: var(--green); }
+
+    .timeline {
+      border-left: 3px solid #e5e7eb;
+      padding-left: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .event { position: relative; font-size: 13px; }
+    .event::before {
+      content: "";
+      position: absolute;
+      left: -22px;
+      top: 4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    .hint {
+      border: 1px dashed #93c5fd;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .dangerbox {
+      border: 1px solid #fecaca;
+      background: #fef2f2;
+      color: #991b1b;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+    }
+
+    .prototype-note {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .demo-status {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin: 0 0 20px;
+    }
+
+    .demo-status .status-item {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .demo-status .status-item strong {
+      display: block;
+      color: var(--text);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 30;
+      min-width: 240px;
+      max-width: 360px;
+      border-radius: 12px;
+      background: #111827;
+      color: #fff;
+      box-shadow: var(--shadow);
+      padding: 12px 14px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: opacity .2s ease, transform .2s ease;
+      font-size: 14px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      place-items: center;
+      background: rgba(15, 23, 42, 0.45);
+      padding: 24px;
+    }
+
+    .modal-backdrop.show {
+      display: grid;
+    }
+
+    .modal {
+      width: min(560px, 100%);
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      padding: 16px 18px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .modal-body {
+      padding: 18px;
+      color: #374151;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      border-top: 1px solid var(--line);
+      padding: 14px 18px 18px;
+    }
+
+    .row-highlight {
+      outline: 2px solid var(--orange);
+      outline-offset: -2px;
+      background: #fffbeb;
+    }
+
+    @media (max-width: 1100px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      .grid.cols-2, .grid.cols-3, .grid.cols-4, .split { grid-template-columns: 1fr; }
+      .demo-status { grid-template-columns: 1fr; }
+      .topbar { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        季度绩效考核评分工具
+        <small>V1 原型 · PC 端优先</small>
+      </div>
+      <nav class="nav" id="nav">
+        <button class="active" data-page="dashboard">首页仪表盘</button>
+        <button data-page="self">我的自评</button>
+        <button data-page="manager">直接上级评分</button>
+        <button data-page="review">间接/部门审阅</button>
+        <button data-page="objective">客观数据导入</button>
+        <button data-page="result">计算结果与导出</button>
+        <button data-page="admin">周期与人员管理</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="title">
+          <h1 id="pageTitle">首页仪表盘</h1>
+          <p>静态 HTML 原型，用于讨论页面结构、核心字段和角色流程，不代表最终视觉风格。</p>
+        </div>
+        <div class="userbox">
+          <div><strong>当前用户：</strong>张三（研发经理）</div>
+          <div style="margin-top:6px">
+            <span class="tag">直接上级</span>
+            <span class="tag purple">部门负责人</span>
+            <span class="tag gray">2026-Q2</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-status" role="region" aria-label="当前演示状态">
+        <div class="status-item">考核周期<strong id="statusCycle">2026-Q2</strong></div>
+        <div class="status-item">当前阶段<strong id="statusStage">直接上级评分</strong></div>
+        <div class="status-item">当前角色<strong id="statusRole">直接上级 / 部门负责人</strong></div>
+        <div class="status-item">自评进度<strong id="statusSelf">182/200</strong></div>
+        <div class="status-item">计算版本<strong id="statusVersion">未计算</strong></div>
+      </div>
+
+      <section class="page active" id="dashboard">
+        <div class="card" style="margin-bottom:16px">
+          <h2>流程进度</h2>
+          <div class="flow">
+            <div class="step done">准备工作<br><span class="muted">人员已导入</span></div>
+            <span class="arrow">→</span>
+            <div class="step done">员工自评<br><span class="muted">182/200</span></div>
+            <span class="arrow">→</span>
+            <div class="step active">直接上级评分<br><span class="muted">进行中</span></div>
+            <span class="arrow">→</span>
+            <div class="step">间接上级审阅</div>
+            <span class="arrow">→</span>
+            <div class="step">部门负责人确认</div>
+            <span class="arrow">→</span>
+            <div class="step">HR 计算导出</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <h2>演示指引</h2>
+          <p class="muted">建议干系人按顺序点击以下按钮，完整走查 V1 流程。</p>
+          <div class="btnrow">
+            <button class="btn" data-action="submit-self">1. 提交自评</button>
+            <button class="btn" data-action="go-manager">2. 进入评分</button>
+            <button class="btn" data-action="submit-manager-score">3. 提交上级评分</button>
+            <button class="btn" data-action="open-adjustment">4. 审阅调整</button>
+            <button class="btn" data-action="submit-review">5. 提交审阅</button>
+            <button class="btn" data-action="run-calculation">6. 执行计算</button>
+            <button class="btn" data-action="finalize-result">7. 生成最终版</button>
+            <button class="btn" data-action="export-final">8. 导出最终结果</button>
+          </div>
+        </div>
+        <div class="hint" style="margin-bottom:16px">
+          当前原型为本地静态流程演示：按钮会模拟状态变化、弹窗确认和页面跳转，不连接真实后端，也不解析真实 Excel。
+        </div>
+
+        <div class="grid cols-4">
+          <div class="card"><h3>我的待办</h3><div class="metric">12</div><div class="muted">待评分下属</div></div>
+          <div class="card"><h3>自评提交率</h3><div class="metric">91%</div><div class="progressbar green"><span style="width:91%"></span></div></div>
+          <div class="card"><h3>评分完成率</h3><div class="metric">64%</div><div class="progressbar orange"><span style="width:64%"></span></div></div>
+          <div class="card"><h3>风险提示</h3><div class="metric" style="color:var(--red)">8</div><div class="muted">超时未自评</div></div>
+        </div>
+
+        <div class="grid cols-2" style="margin-top:16px">
+          <div class="card">
+            <h3>待我处理</h3>
+            <table>
+              <thead><tr><th>事项</th><th>数量</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td>直接下属待评分</td><td><span class="tag orange">12</span></td><td><button class="btn" data-action="go-manager">进入评分</button></td></tr>
+                <tr><td>自评超时人员</td><td><span class="tag red">8</span></td><td><button class="btn" data-action="go-overdue">查看名单</button></td></tr>
+                <tr><td>部门负责人待确认</td><td><span class="tag gray">未开始</span></td><td><button class="btn" disabled>暂不可处理</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h3>系统提示</h3>
+            <div class="hint">
+              提交后内容将锁定。如需修改，需要由下一环节负责人或 HRBP 撤回，并填写撤回原因。
+            </div>
+            <div class="prototype-note">此处用于强化“提交即锁定”和“撤回留痕”的用户认知。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="self">
+        <div class="grid cols-2">
+          <div class="card">
+            <h2>我的自评</h2>
+            <div class="form-grid">
+              <div class="label">当前状态</div><div><span class="tag orange" id="selfStatusTag">草稿</span></div>
+              <div class="label">工作总结</div><textarea placeholder="填写本季度主要工作内容、成果、亮点（选填，最多 2000 字）">完成核心模块重构，支撑 Q2 重点项目交付；优化接口响应，降低数据处理耗时。</textarea>
+              <div class="label">产出和质量</div><select><option>B+</option><option>A</option><option>B</option></select>
+              <div class="label">主动承担</div><select><option>A</option><option>B+</option><option>B</option></select>
+              <div class="label">易用性和可维护</div><select><option>B+</option><option>A</option><option>B</option></select>
+              <div></div><div class="btnrow"><button class="btn" data-action="save-self-draft">保存草稿</button><button class="btn primary" data-action="submit-self">提交自评</button></div>
+            </div>
+          </div>
+          <div class="card">
+            <h2>评价标准参考</h2>
+            <table>
+              <thead><tr><th>等级</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td><span class="tag green">A+/A</span></td><td>主导或高质量完成具备难度的目标，成果质量优秀。</td></tr>
+                <tr><td><span class="tag">B+/B</span></td><td>稳定达成目标，成果质量和效率符合或略高预期。</td></tr>
+                <tr><td><span class="tag orange">B-</span></td><td>基本完成任务，仍有持续提升空间。</td></tr>
+                <tr><td><span class="tag red">C/D</span></td><td>未达到岗位要求，需制定改进计划。</td></tr>
+              </tbody>
+            </table>
+            <div class="prototype-note">最终实现可用侧边栏、抽屉或悬浮卡片展示 PRD 附录评价标准。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="manager">
+        <div class="card" style="margin-bottom:16px">
+          <h2>下属评分列表</h2>
+          <table>
+            <thead><tr><th>工号</th><th>姓名</th><th>序列/职级</th><th>自评状态</th><th>流程状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>E001</td><td>李四</td><td>P4-10</td><td><span class="tag green">已提交</span></td><td>待直接上级评分</td><td><button class="btn primary" data-action="open-score-detail">评分</button></td></tr>
+              <tr id="overdueRow"><td>E002</td><td>王五</td><td>P1-3</td><td><span class="tag red">超时</span></td><td>待直接上级评分</td><td><button class="btn" data-action="score-overdue">跳过自评后评分</button></td></tr>
+              <tr><td>E003</td><td>赵六</td><td>P4-10</td><td><span class="tag orange">未提交</span></td><td>待自评</td><td><button class="btn" disabled>等待自评</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="split">
+          <div class="card">
+            <h2>左侧：员工自评（只读）</h2>
+            <p><strong>员工：</strong>李四 / P4-10 / 平台组</p>
+            <p class="muted">工作总结</p>
+            <div class="hint">完成核心服务治理、接口性能优化和异常监控接入。支撑多个业务系统上线。</div>
+            <table style="margin-top:12px">
+              <tbody>
+                <tr><th>产出和质量</th><td>B+</td></tr>
+                <tr><th>主动承担</th><td>A</td></tr>
+                <tr><th>易用性和可维护</th><td>B+</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h2>右侧：上级评分</h2>
+            <div class="form-grid">
+              <div class="label">产出和质量</div><select><option>A</option><option>B+</option><option>B</option></select>
+              <div class="label">主动承担</div><select><option>A</option><option>B+</option><option>B</option></select>
+              <div class="label">易用性和可维护</div><select><option>B+</option><option>A</option><option>B</option></select>
+              <div class="label">初始总分评分</div><select><option>A</option><option>B+</option><option>B</option></select>
+              <div class="label">整体评语</div><textarea placeholder="A/A+/C/D 必填，最多 500 字">主动承担复杂任务，整体质量较好，建议保持跨团队协作影响力。</textarea>
+              <div></div><div class="btnrow"><button class="btn" data-action="save-manager-draft">保存草稿</button><button class="btn primary" data-action="submit-manager-score">提交评分</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="review">
+        <div class="grid cols-3" style="margin-bottom:16px">
+          <div class="card"><h3>A+ 占比</h3><div class="metric">8%</div><div class="tag orange">参考 5% ±2%</div></div>
+          <div class="card"><h3>A 占比</h3><div class="metric">17%</div><div class="tag green">参考 15% ±3%</div></div>
+          <div class="card"><h3>B+ 占比</h3><div class="metric">42%</div><div class="tag red">参考 30% ±5%</div></div>
+        </div>
+        <div class="split">
+          <div class="card">
+            <h2>审阅总览</h2>
+            <table>
+              <thead><tr><th>姓名</th><th>职级</th><th>直接上级</th><th>当前建议等级</th><th>调整</th></tr></thead>
+              <tbody>
+                <tr><td>李四</td><td>P4-10</td><td>张三</td><td><span class="tag green">A</span></td><td><button class="btn" data-action="open-adjustment">调整</button></td></tr>
+                <tr><td>王五</td><td>P1-3</td><td>张三</td><td><span class="tag">B+</span></td><td><button class="btn" data-action="open-adjustment">调整</button></td></tr>
+                <tr><td>赵六</td><td>P4-10</td><td>张三</td><td><span class="tag red">C</span></td><td><button class="btn" data-action="open-adjustment">调整</button></td></tr>
+              </tbody>
+            </table>
+            <div class="btnrow" style="margin-top:14px"><button class="btn primary" data-action="submit-review">提交审阅结果</button><button class="btn" data-action="export-range">导出当前范围</button></div>
+          </div>
+          <div class="card">
+            <h2>调整面板</h2>
+            <div class="form-grid">
+              <div class="label">调整对象</div><div>李四 / E001</div>
+              <div class="label">调整类型</div><select><option>综合建议等级（不影响加权）</option><option>主观维度等级（影响加权）</option></select>
+              <div class="label">调整前</div><div><span class="tag green">A</span></div>
+              <div class="label">调整后</div><select><option>B+</option><option>A</option><option>A+</option></select>
+              <div class="label">调整原因</div><textarea placeholder="必填，记录到调整历史和审计日志"></textarea>
+            </div>
+            <h3 style="margin-top:18px">调整历史</h3>
+            <div class="timeline">
+              <div class="event"><strong>直接上级评分：</strong>B+ → A<br><span class="muted">张三 · 2026-06-20 10:12</span></div>
+              <div class="event"><strong>间接上级调整：</strong>A → B+<br><span class="muted">待填写原因后保存</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="objective">
+        <div class="grid cols-2">
+          <div class="card">
+            <h2>客观数据导入</h2>
+            <div class="btnrow"><button class="btn" data-action="download-objective-template">下载预填模板</button><button class="btn primary" data-action="upload-objective">上传 Excel</button><button class="btn" data-action="download-error-report">下载错误报告</button></div>
+            <table style="margin-top:16px">
+              <thead><tr><th>批次</th><th>总数</th><th>成功</th><th>失败</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td>OBJ-20260620-001</td><td>200</td><td>196</td><td><span class="tag red">4</span></td><td><span class="tag orange">待修正</span></td></tr>
+              </tbody>
+            </table>
+            <div class="dangerbox" style="margin-top:12px">第 16 行：日志异常次数不是整数；第 48 行：工号不存在。</div>
+          </div>
+          <div class="card">
+            <h2>转换结果预览</h2>
+            <table>
+              <thead><tr><th>姓名</th><th>勤奋月均</th><th>勤奋等级</th><th>纪律次数</th><th>纪律等级</th><th>学习等级</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td>李四</td><td>62</td><td>A</td><td>2</td><td>A+</td><td>B+</td><td><button class="btn">查看</button></td></tr>
+                <tr><td>王五</td><td>35</td><td><span class="tag red">C</span></td><td>11</td><td><span class="tag red">C</span></td><td>B</td><td><button class="btn">修正</button></td></tr>
+              </tbody>
+            </table>
+            <div class="prototype-note">人工修正必须填写原因，并保留修正前后值。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="result">
+        <div class="grid cols-3" style="margin-bottom:16px">
+          <div class="card"><h3>计算任务</h3><div class="metric">成功</div><span class="tag green">INITIAL v2</span></div>
+          <div class="card"><h3>最终微调</h3><div class="metric">6</div><span class="tag orange">待确认</span></div>
+          <div class="card"><h3>导出文件</h3><div class="metric">3</div><span class="tag">可下载</span></div>
+        </div>
+        <div class="card">
+          <h2>计算结果总览</h2>
+          <table>
+            <thead><tr><th>排名</th><th>姓名</th><th>分组</th><th>加权分</th><th>系统建议等级</th><th>HR最终等级</th><th>微调原因</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>李四</td><td>P4-10</td><td>91.6</td><td><span class="tag green">A</span></td><td><span class="tag green">A</span></td><td>-</td><td><button class="btn">计算明细</button></td></tr>
+              <tr><td>2</td><td>王五</td><td>P1-3</td><td>87.2</td><td><span class="tag">B+</span></td><td><span class="tag green">A</span></td><td>部门经理反馈调整</td><td><button class="btn">查看调整</button></td></tr>
+            </tbody>
+          </table>
+          <div class="btnrow" style="margin-top:14px"><button class="btn primary" data-action="run-calculation">执行/重算</button><button class="btn" data-action="export-initial">导出初评结果</button><button class="btn green" data-action="finalize-result">生成最终版</button><button class="btn" data-action="export-final">导出最终结果</button></div>
+        </div>
+      </section>
+
+      <section class="page" id="admin">
+        <div class="grid cols-2">
+          <div class="card">
+            <h2>考核周期管理</h2>
+            <table>
+              <tbody>
+                <tr><th>周期名称</th><td>2026-Q2</td></tr>
+                <tr><th>周期状态</th><td><span class="tag green">ACTIVE</span></td></tr>
+                <tr><th>自评截止</th><td>2026-06-20</td></tr>
+                <tr><th>评分截止</th><td>2026-06-25</td></tr>
+              </tbody>
+            </table>
+            <div class="btnrow" style="margin-top:14px"><button class="btn" data-action="edit-cycle">编辑周期</button><button class="btn red" data-action="close-cycle">关闭周期</button></div>
+          </div>
+          <div class="card">
+            <h2>人员导入与账号</h2>
+            <div class="btnrow"><button class="btn" data-action="download-employee-template">下载人员模板</button><button class="btn primary" data-action="import-employees">导入人员</button><button class="btn" data-action="init-accounts">初始化账号</button></div>
+            <table style="margin-top:16px">
+              <thead><tr><th>部门</th><th>人数</th><th>管理序列</th><th>P1-3</th><th>P4-10</th></tr></thead>
+              <tbody>
+                <tr><td>平台研发部</td><td>82</td><td>6</td><td>24</td><td>52</td></tr>
+                <tr><td>应用研发部</td><td>118</td><td>8</td><td>40</td><td>70</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">提示</h2>
+        <button class="btn" type="button" data-action="modal-close">关闭</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-actions" id="modalActions">
+        <button class="btn primary" type="button" data-action="modal-close">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const titles = {
+      dashboard: '首页仪表盘',
+      self: '我的自评',
+      manager: '直接上级评分',
+      review: '间接/部门审阅',
+      objective: '客观数据导入',
+      result: '计算结果与导出',
+      admin: '周期与人员管理'
+    };
+
+    const demoState = {
+      cycle: '2026-Q2',
+      stage: '直接上级评分',
+      role: '直接上级 / 部门负责人',
+      selfSubmitted: 182,
+      total: 200,
+      scored: 128,
+      resultVersion: '未计算',
+      selfStatus: '草稿',
+      calculationDone: false,
+      finalDone: false
+    };
+
+    let toastTimer;
+
+    function el(selector) {
+      return document.querySelector(selector);
+    }
+
+    function all(selector) {
+      return Array.from(document.querySelectorAll(selector));
+    }
+
+    function showPage(id, message) {
+      if (!titles[id] || !el(`#${id}`)) return;
+
+      all('#nav button').forEach(btn => btn.classList.toggle('active', btn.dataset.page === id));
+      all('.page').forEach(page => page.classList.toggle('active', page.id === id));
+      el('#pageTitle').textContent = titles[id];
+
+      if (message) showToast(message);
+    }
+
+    function renderStatus() {
+      el('#statusCycle').textContent = demoState.cycle;
+      el('#statusStage').textContent = demoState.stage;
+      el('#statusRole').textContent = demoState.role;
+      el('#statusSelf').textContent = `${demoState.selfSubmitted}/${demoState.total}`;
+      el('#statusVersion').textContent = demoState.resultVersion;
+
+      const selfStatusTag = el('#selfStatusTag');
+      if (selfStatusTag) {
+        selfStatusTag.textContent = demoState.selfStatus;
+        selfStatusTag.className = demoState.selfStatus === '已提交' ? 'tag green' : 'tag orange';
+      }
+
+      updateProgressText();
+    }
+
+    function showToast(message) {
+      const toast = el('#toast');
+      if (!toast) return;
+
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function closeModal() {
+      const backdrop = el('#modalBackdrop');
+      if (backdrop) backdrop.classList.remove('show');
+    }
+
+    function openModal(title, bodyHtml, actionsHtml) {
+      el('#modalTitle').textContent = title;
+      el('#modalBody').innerHTML = bodyHtml;
+      el('#modalActions').innerHTML = actionsHtml || '<button class="btn primary" type="button" data-action="modal-close">确定</button>';
+      el('#modalBackdrop').classList.add('show');
+    }
+
+    function requireReasonModal(title, confirmAction) {
+      openModal(
+        title,
+        '<p>请填写操作原因，提交后将记录到审计日志。</p><textarea id="modalReason" placeholder="请输入原因"></textarea>',
+        `<button class="btn" type="button" data-action="modal-close">取消</button><button class="btn primary" type="button" data-action="${confirmAction}">确认</button>`
+      );
+    }
+
+    function flashOverdueRow() {
+      const row = el('#overdueRow');
+      if (!row) return;
+
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.add('row-highlight');
+      setTimeout(() => row.classList.remove('row-highlight'), 1800);
+    }
+
+    function updateProgressText() {
+      const selfRate = Math.round((demoState.selfSubmitted / demoState.total) * 100);
+      const scoredRate = Math.round((demoState.scored / demoState.total) * 100);
+      const metrics = all('#dashboard .grid.cols-4 .card');
+
+      if (metrics[1]) {
+        metrics[1].querySelector('.metric').textContent = `${selfRate}%`;
+        metrics[1].querySelector('.progressbar span').style.width = `${selfRate}%`;
+      }
+
+      if (metrics[2]) {
+        metrics[2].querySelector('.metric').textContent = `${scoredRate}%`;
+        metrics[2].querySelector('.progressbar span').style.width = `${scoredRate}%`;
+      }
+
+      const selfStep = el('#dashboard .flow .step:nth-of-type(2) .muted');
+      if (selfStep) selfStep.textContent = `${demoState.selfSubmitted}/${demoState.total}`;
+    }
+
+    function handleAction(action) {
+      switch (action) {
+        case 'go-manager':
+          showPage('manager', '已进入直接上级评分页面。');
+          break;
+        case 'go-overdue':
+          showPage('manager', '已筛选自评超时人员。');
+          setTimeout(flashOverdueRow, 120);
+          break;
+        case 'save-self-draft':
+          showToast('自评草稿已保存。');
+          break;
+        case 'submit-self':
+          demoState.selfStatus = '已提交';
+          demoState.selfSubmitted = Math.min(demoState.selfSubmitted + 1, demoState.total);
+          demoState.stage = '直接上级评分';
+          renderStatus();
+          showPage('dashboard', '自评已提交，内容已锁定。');
+          break;
+        case 'open-score-detail':
+          showToast('已打开员工评分明细。');
+          break;
+        case 'score-overdue':
+          showToast('已进入超时员工评分，可跳过自评继续评分。');
+          break;
+        case 'save-manager-draft':
+          showToast('上级评分草稿已保存。');
+          break;
+        case 'submit-manager-score':
+          demoState.scored = Math.min(demoState.scored + 1, demoState.total);
+          demoState.stage = '间接上级审阅';
+          renderStatus();
+          showPage('review', '评分已提交，进入间接上级审阅。');
+          break;
+        case 'open-adjustment':
+          requireReasonModal('保存等级调整', 'confirm-adjustment');
+          break;
+        case 'confirm-adjustment':
+          closeModal();
+          showToast('调整已保存，并已记录原因。');
+          break;
+        case 'submit-review':
+          demoState.stage = 'HR 计算与结果输出';
+          renderStatus();
+          showPage('result', '审阅结果已提交，进入 HR 计算环节。');
+          break;
+        case 'export-range':
+          openModal(
+            '导出当前范围',
+            '<p>将导出当前审阅范围内员工的评分、调整记录和流程状态。</p>',
+            '<button class="btn" type="button" data-action="modal-close">取消</button><button class="btn primary" type="button" data-action="confirm-export-range">确认导出</button>'
+          );
+          break;
+        case 'confirm-export-range':
+          closeModal();
+          showToast('当前范围导出任务已创建。');
+          break;
+        case 'download-objective-template':
+          showToast('客观数据预填模板已开始下载。');
+          break;
+        case 'upload-objective':
+          showToast('已模拟上传 Excel，发现 4 条待修正数据。');
+          break;
+        case 'download-error-report':
+          showToast('错误报告已开始下载。');
+          break;
+        case 'run-calculation':
+          demoState.resultVersion = 'INITIAL v1';
+          demoState.calculationDone = true;
+          demoState.stage = '初评结果已生成';
+          renderStatus();
+          showToast('计算完成，已生成 INITIAL v1。');
+          break;
+        case 'export-initial':
+          openModal(
+            '导出初评结果',
+            '<p>将导出 INITIAL 版本结果，用于沟通和复核。</p>',
+            '<button class="btn" type="button" data-action="modal-close">取消</button><button class="btn primary" type="button" data-action="confirm-export-initial">确认导出</button>'
+          );
+          break;
+        case 'confirm-export-initial':
+          closeModal();
+          showToast('初评结果导出任务已创建。');
+          break;
+        case 'finalize-result':
+          demoState.resultVersion = 'FINAL v1';
+          demoState.finalDone = true;
+          demoState.stage = '最终结果已确认';
+          renderStatus();
+          showToast('最终结果已确认并生成 FINAL v1。');
+          break;
+        case 'export-final':
+          openModal(
+            '导出最终结果',
+            '<p>将导出 FINAL 版本结果和归档文件。</p>',
+            '<button class="btn" type="button" data-action="modal-close">取消</button><button class="btn primary" type="button" data-action="confirm-export-final">确认导出</button>'
+          );
+          break;
+        case 'confirm-export-final':
+          closeModal();
+          showToast('最终结果导出任务已创建。');
+          break;
+        case 'edit-cycle':
+          openModal(
+            '编辑周期',
+            '<p>原型提示：正式系统中可在此维护周期名称、截止时间和适用范围。</p>',
+            '<button class="btn primary" type="button" data-action="modal-close">知道了</button>'
+          );
+          break;
+        case 'close-cycle':
+          requireReasonModal('关闭考核周期', 'confirm-close-cycle');
+          break;
+        case 'confirm-close-cycle':
+          closeModal();
+          demoState.stage = '周期已关闭';
+          renderStatus();
+          showToast('考核周期已关闭。');
+          break;
+        case 'download-employee-template':
+          showToast('人员导入模板已开始下载。');
+          break;
+        case 'import-employees':
+          showToast('已模拟导入人员数据。');
+          break;
+        case 'init-accounts':
+          showToast('账号初始化任务已创建。');
+          break;
+        case 'modal-close':
+          closeModal();
+          break;
+        default:
+          showToast('该操作已触发。');
+      }
+    }
+
+    all('#nav button').forEach(btn => {
+      btn.addEventListener('click', () => showPage(btn.dataset.page));
+    });
+
+    document.addEventListener('click', event => {
+      const trigger = event.target.closest('[data-action]');
+      if (!trigger) return;
+
+      event.preventDefault();
+      handleAction(trigger.dataset.action);
+    });
+
+    el('#modalBackdrop').addEventListener('click', event => {
+      if (event.target.id === 'modalBackdrop') closeModal();
+    });
+
+    renderStatus();
+  </script>
+</body>
+</html>
