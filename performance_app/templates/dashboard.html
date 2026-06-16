@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}首页仪表盘 - 绩效考核评分工具{% endblock %}
+{% block content %}
+<h1>首页仪表盘</h1>
+<section class="grid">
+    <a class="card" href="/self-review"><h2>我的自评</h2><p>填写工作总结和三个自评维度。</p></a>
+    <a class="card" href="/direct-reports"><h2>直接上级评分</h2><p>查看下属并完成评分草稿/批量提交。</p></a>
+    <a class="card" href="/reviews/indirect/page"><h2>间接上级审阅</h2><p>查看比例分布，调整并提交团队结果。</p></a>
+    <a class="card" href="/reviews/dept-head/page"><h2>部门负责人确认</h2><p>确认部门范围记录。</p></a>
+    <a class="card" href="/objective/import/page"><h2>客观数据导入</h2><p>下载模板、上传 objective.xlsx。</p></a>
+    <a class="card" href="/results"><h2>结果导出</h2><p>执行计算、最终确认并导出 Excel。</p></a>
+</section>
+{% endblock %}

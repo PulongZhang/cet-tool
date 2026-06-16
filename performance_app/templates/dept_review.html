@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}部门负责人确认 - 绩效考核评分工具{% endblock %}
+{% block content %}
+<h1>部门负责人确认</h1>
+<section class="card">
+    <h2>比例分布</h2>
+    <p>分布接口：<code>/reviews/dept-head/distribution</code></p>
+    <table><thead><tr><th>等级</th><th>人数</th></tr></thead><tbody><tr><td>B+</td><td>0</td></tr></tbody></table>
+</section>
+<section class="card">
+    <h2>确认提交</h2>
+    <form data-api="/records/{record_id}/adjustments">
+        <label>调整字段 <input name="field_name" value="current_subjective_level"></label>
+        <label>调整后 <input name="after_value" value="B"></label>
+        <label>原因 <textarea name="reason"></textarea></label>
+        <button type="button">保存调整</button>
+    </form>
+    <form method="post" action="/reviews/dept-head/submit" data-api="/reviews/dept-head/submit">
+        <label>周期 ID <input name="cycle_id" value="1"></label>
+        <button type="submit">提交部门负责人确认</button>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}绩效考核评分工具{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <a href="/" class="brand">绩效考核评分工具</a>
+        <nav>
+            <a href="/self-review">我的自评</a>
+            <a href="/direct-reports">直接上级评分</a>
+            <a href="/reviews/indirect/page">间接审阅</a>
+            <a href="/reviews/dept-head/page">部门确认</a>
+            <a href="/objective/import/page">客观数据</a>
+            <a href="/results">结果导出</a>
+        </nav>
+    </header>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

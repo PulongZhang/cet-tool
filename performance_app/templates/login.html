@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}登录 - 绩效考核评分工具{% endblock %}
+{% block content %}
+<section class="card narrow">
+    <h1>绩效考核评分工具</h1>
+    <form method="post" action="/auth/login" data-api="/auth/login">
+        <label>用户名 <input name="username" autocomplete="username"></label>
+        <label>密码 <input name="password" type="password" autocomplete="current-password"></label>
+        <button type="submit">登录</button>
+    </form>
+</section>
+{% endblock %}

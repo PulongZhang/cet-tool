@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}客观数据导入 - 绩效考核评分工具{% endblock %}
+{% block content %}
+<h1>客观数据导入</h1>
+<section class="card">
+    <p><a href="/objective/template">下载客观数据模板</a>，填写后上传 <strong>objective.xlsx</strong>。</p>
+    <form method="post" action="/objective/upload" enctype="multipart/form-data" data-api="/objective/upload">
+        <label>周期 ID <input name="cycle_id" value="1"></label>
+        <label>Excel 文件 <input name="file" type="file" accept=".xlsx"></label>
+        <button type="submit">上传客观数据</button>
+    </form>
+</section>
+{% endblock %}

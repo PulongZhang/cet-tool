@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}直接上级评分 - 绩效考核评分工具{% endblock %}
+{% block content %}
+<h1>直接上级评分</h1>
+<section class="card">
+    <h2>下属列表</h2>
+    <p>数据接口：<code>/records/direct-reports</code></p>
+    <table>
+        <thead><tr><th>工号</th><th>姓名</th><th>状态</th><th>初始总评</th></tr></thead>
+        <tbody><tr><td>E001</td><td>示例员工</td><td>DIRECT_PENDING</td><td>A</td></tr></tbody>
+    </table>
+</section>
+<section class="card">
+    <h2>评分表单</h2>
+    <form data-api="/records/{record_id}/manager-draft">
+        <label>维度 1 <select name="manager_score_1"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
+        <label>维度 2 <select name="manager_score_2"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
+        <label>维度 3 <select name="manager_score_3"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
+        <label>初始总评 <select name="initial_total_grade"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
+        <label>评语 <textarea name="manager_comment"></textarea></label>
+        <button type="button">保存评分草稿</button>
+    </form>
+    <form method="post" action="/records/direct-reports/submit" data-api="/records/direct-reports/submit">
+        <label>周期 ID <input name="cycle_id" value="1"></label>
+        <button type="submit">批量提交评分</button>
+    </form>
+</section>
+{% endblock %}

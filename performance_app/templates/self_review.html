@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}我的自评 - 绩效考核评分工具{% endblock %}
+{% block content %}
+<h1>我的自评</h1>
+<section class="card">
+    <p>先通过 <code>GET /records/my</code> 获取当前周期记录，再保存草稿或提交。</p>
+    <form data-api="/records/my">
+        <label>周期 ID <input name="cycle_id" value="1"></label>
+        <label>工作总结 <textarea name="self_summary" rows="5"></textarea></label>
+        <label>维度 1 <select name="self_score_1"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
+        <label>维度 2 <select name="self_score_2"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
+        <label>维度 3 <select name="self_score_3"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
+        <button type="button">保存自评草稿</button>
+        <button type="button">提交自评</button>
+    </form>
+</section>
+{% endblock %}

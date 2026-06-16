@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}计算结果总览 - 绩效考核评分工具{% endblock %}
+{% block content %}
+<h1>计算结果总览</h1>
+<section class="card">
+    <h2>执行计算</h2>
+    <form method="post" action="/cycles/{cycle_id}/calculate" data-api="/cycles/{cycle_id}/calculate">
+        <label>周期 ID <input name="cycle_id" value="1"></label>
+        <button type="submit">执行计算</button>
+    </form>
+</section>
+<section class="card">
+    <h2>结果表</h2>
+    <p>查询接口：<code>/cycles/{cycle_id}/results</code></p>
+    <table>
+        <thead><tr><th>工号</th><th>姓名</th><th>加权分</th><th>排名</th><th>系统建议</th><th>最终等级</th></tr></thead>
+        <tbody><tr><td>E001</td><td>示例员工</td><td>89.9</td><td>1/2</td><td>B+</td><td>B+</td></tr></tbody>
+    </table>
+</section>
+<section class="card">
+    <h2>最终确认与导出</h2>
+    <form method="post" action="/cycles/{cycle_id}/results/finalize" data-api="/cycles/{cycle_id}/results/finalize">
+        <button type="submit">最终确认</button>
+    </form>
+    <form method="post" action="/cycles/{cycle_id}/exports/final" data-api="/cycles/{cycle_id}/exports/final">
+        <button type="submit">导出最终结果 Excel</button>
+    </form>
+</section>
+{% endblock %}
