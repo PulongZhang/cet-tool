@@ -423,7 +423,8 @@
         <button class="active" data-page="dashboard">首页仪表盘</button>
         <button data-page="self">我的自评</button>
         <button data-page="manager">直接上级评分</button>
-        <button data-page="review">间接/部门审阅</button>
+        <button data-page="indirectReview">间接上级审阅</button>
+        <button data-page="departmentReview">部门经理确认</button>
         <button data-page="objective">客观数据导入</button>
         <button data-page="result">计算结果与导出</button>
         <button data-page="admin">周期与人员管理</button>
@@ -434,13 +435,14 @@
       <div class="topbar">
         <div class="title">
           <h1 id="pageTitle">首页仪表盘</h1>
-          <p>静态 HTML 原型，用于讨论页面结构、核心字段和角色流程，不代表最终视觉风格。</p>
+          <p>静态 HTML 原型，仅用于讨论页面结构、核心字段和角色流程，不代表实际交互逻辑。</p>
         </div>
         <div class="userbox">
           <div><strong>当前用户：</strong>张三（研发经理）</div>
           <div style="margin-top:6px">
             <span class="tag">直接上级</span>
-            <span class="tag purple">部门负责人</span>
+            <span class="tag">间接上级</span>
+            <span class="tag purple">部门经理</span>
             <span class="tag gray">2026-Q2</span>
           </div>
         </div>
@@ -449,7 +451,7 @@
       <div class="demo-status" role="region" aria-label="当前演示状态">
         <div class="status-item">考核周期<strong id="statusCycle">2026-Q2</strong></div>
         <div class="status-item">当前阶段<strong id="statusStage">直接上级评分</strong></div>
-        <div class="status-item">当前角色<strong id="statusRole">直接上级 / 部门负责人</strong></div>
+        <div class="status-item">当前角色<strong id="statusRole">直接上级 / 间接上级 / 部门经理</strong></div>
         <div class="status-item">自评进度<strong id="statusSelf">182/200</strong></div>
         <div class="status-item">计算版本<strong id="statusVersion">未计算</strong></div>
       </div>
@@ -466,7 +468,7 @@
             <span class="arrow">→</span>
             <div class="step">间接上级审阅</div>
             <span class="arrow">→</span>
-            <div class="step">部门负责人确认</div>
+            <div class="step">部门经理确认</div>
             <span class="arrow">→</span>
             <div class="step">HR 计算导出</div>
           </div>
@@ -479,11 +481,12 @@
             <button class="btn" data-action="submit-self">1. 提交自评</button>
             <button class="btn" data-action="go-manager">2. 进入评分</button>
             <button class="btn" data-action="submit-manager-score">3. 提交上级评分</button>
-            <button class="btn" data-action="open-adjustment">4. 审阅调整</button>
-            <button class="btn" data-action="submit-review">5. 提交审阅</button>
-            <button class="btn" data-action="run-calculation">6. 执行计算</button>
-            <button class="btn" data-action="finalize-result">7. 生成最终版</button>
-            <button class="btn" data-action="export-final">8. 导出最终结果</button>
+            <button class="btn" data-action="open-adjustment">4. 间接审阅调整</button>
+            <button class="btn" data-action="submit-indirect-review">5. 提交间接审阅</button>
+            <button class="btn" data-action="submit-department-review">6. 提交部门经理确认</button>
+            <button class="btn" data-action="run-calculation">7. 执行计算</button>
+            <button class="btn" data-action="finalize-result">8. 生成最终版</button>
+            <button class="btn" data-action="export-final">9. 导出最终结果</button>
           </div>
         </div>
         <div class="hint" style="margin-bottom:16px">
@@ -505,7 +508,7 @@
               <tbody>
                 <tr><td>直接下属待评分</td><td><span class="tag orange">12</span></td><td><button class="btn" data-action="go-manager">进入评分</button></td></tr>
                 <tr><td>自评超时人员</td><td><span class="tag red">8</span></td><td><button class="btn" data-action="go-overdue">查看名单</button></td></tr>
-                <tr><td>部门负责人待确认</td><td><span class="tag gray">未开始</span></td><td><button class="btn" disabled>暂不可处理</button></td></tr>
+                <tr><td>部门经理待确认</td><td><span class="tag gray">未开始</span></td><td><button class="btn" disabled>暂不可处理</button></td></tr>
               </tbody>
             </table>
           </div>
@@ -589,7 +592,7 @@
         </div>
       </section>
 
-      <section class="page" id="review">
+      <section class="page" id="indirectReview">
         <div class="grid cols-3" style="margin-bottom:16px">
           <div class="card"><h3>A+ 占比</h3><div class="metric">8%</div><div class="tag orange">参考 5% ±2%</div></div>
           <div class="card"><h3>A 占比</h3><div class="metric">17%</div><div class="tag green">参考 15% ±3%</div></div>
@@ -597,7 +600,7 @@
         </div>
         <div class="split">
           <div class="card">
-            <h2>审阅总览</h2>
+            <h2>间接上级审阅总览</h2>
             <table>
               <thead><tr><th>姓名</th><th>职级</th><th>直接上级</th><th>当前建议等级</th><th>调整</th></tr></thead>
               <tbody>
@@ -606,10 +609,10 @@
                 <tr><td>赵六</td><td>P4-10</td><td>张三</td><td><span class="tag red">C</span></td><td><button class="btn" data-action="open-adjustment">调整</button></td></tr>
               </tbody>
             </table>
-            <div class="btnrow" style="margin-top:14px"><button class="btn primary" data-action="submit-review">提交审阅结果</button><button class="btn" data-action="export-range">导出当前范围</button></div>
+            <div class="btnrow" style="margin-top:14px"><button class="btn primary" data-action="submit-indirect-review">提交间接上级审阅</button><button class="btn" data-action="export-range">导出当前范围</button></div>
           </div>
           <div class="card">
-            <h2>调整面板</h2>
+            <h2>间接上级调整面板</h2>
             <div class="form-grid">
               <div class="label">调整对象</div><div>李四 / E001</div>
               <div class="label">调整类型</div><select><option>综合建议等级（不影响加权）</option><option>主观维度等级（影响加权）</option></select>
@@ -621,6 +624,44 @@
             <div class="timeline">
               <div class="event"><strong>直接上级评分：</strong>B+ → A<br><span class="muted">张三 · 2026-06-20 10:12</span></div>
               <div class="event"><strong>间接上级调整：</strong>A → B+<br><span class="muted">待填写原因后保存</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="departmentReview">
+        <div class="grid cols-3" style="margin-bottom:16px">
+          <div class="card"><h3>A+ 占比</h3><div class="metric">7%</div><div class="tag green">参考 5% ±2%</div></div>
+          <div class="card"><h3>A 占比</h3><div class="metric">18%</div><div class="tag green">参考 15% ±3%</div></div>
+          <div class="card"><h3>B+ 占比</h3><div class="metric">39%</div><div class="tag orange">参考 30% ±5%</div></div>
+        </div>
+        <div class="split">
+          <div class="card">
+            <h2>部门经理确认总览</h2>
+            <table>
+              <thead><tr><th>姓名</th><th>职级</th><th>间接上级等级</th><th>最终建议等级</th><th>调整</th></tr></thead>
+              <tbody>
+                <tr><td>李四</td><td>P4-10</td><td><span class="tag green">A</span></td><td><span class="tag green">A</span></td><td><button class="btn" data-action="open-adjustment">调整</button></td></tr>
+                <tr><td>王五</td><td>P1-3</td><td><span class="tag">B+</span></td><td><span class="tag green">A</span></td><td><button class="btn" data-action="open-adjustment">调整</button></td></tr>
+                <tr><td>赵六</td><td>P4-10</td><td><span class="tag red">C</span></td><td><span class="tag red">C</span></td><td><button class="btn" data-action="open-adjustment">调整</button></td></tr>
+              </tbody>
+            </table>
+            <div class="btnrow" style="margin-top:14px"><button class="btn primary" data-action="submit-department-review">提交部门经理确认</button><button class="btn" data-action="export-range">导出当前范围</button></div>
+          </div>
+          <div class="card">
+            <h2>部门经理最终确认面板</h2>
+            <div class="form-grid">
+              <div class="label">确认对象</div><div>王五 / E002</div>
+              <div class="label">确认类型</div><select><option>综合建议等级（最终确认）</option><option>主观维度等级（影响加权）</option></select>
+              <div class="label">间接上级等级</div><div><span class="tag">B+</span></div>
+              <div class="label">最终确认等级</div><select><option>A</option><option>B+</option><option>A+</option></select>
+              <div class="label">确认原因</div><textarea placeholder="如有调整必填，记录到调整历史和审计日志">部门经理反馈调整。</textarea>
+            </div>
+            <h3 style="margin-top:18px">调整历史</h3>
+            <div class="timeline">
+              <div class="event"><strong>直接上级评分：</strong>B → B+<br><span class="muted">张三 · 2026-06-20 10:12</span></div>
+              <div class="event"><strong>间接上级审阅：</strong>B+<br><span class="muted">李经理 · 2026-06-21 15:40</span></div>
+              <div class="event"><strong>部门经理确认：</strong>B+ → A<br><span class="muted">待提交后记录</span></div>
             </div>
           </div>
         </div>
@@ -722,7 +763,8 @@
       dashboard: '首页仪表盘',
       self: '我的自评',
       manager: '直接上级评分',
-      review: '间接/部门审阅',
+      indirectReview: '间接上级审阅',
+      departmentReview: '部门经理确认',
       objective: '客观数据导入',
       result: '计算结果与导出',
       admin: '周期与人员管理'
@@ -731,7 +773,7 @@
     const demoState = {
       cycle: '2026-Q2',
       stage: '直接上级评分',
-      role: '直接上级 / 部门负责人',
+      role: '直接上级 / 间接上级 / 部门经理',
       selfSubmitted: 182,
       total: 200,
       scored: 128,
@@ -866,8 +908,9 @@
         case 'submit-manager-score':
           demoState.scored = Math.min(demoState.scored + 1, demoState.total);
           demoState.stage = '间接上级审阅';
+          demoState.role = '间接上级';
           renderStatus();
-          showPage('review', '评分已提交，进入间接上级审阅。');
+          showPage('indirectReview', '评分已提交，进入间接上级审阅。');
           break;
         case 'open-adjustment':
           requireReasonModal('保存等级调整', 'confirm-adjustment');
@@ -877,9 +920,16 @@
           showToast('调整已保存，并已记录原因。');
           break;
         case 'submit-review':
+        case 'submit-indirect-review':
+          demoState.stage = '部门经理确认';
+          demoState.role = '部门经理';
+          renderStatus();
+          showPage('departmentReview', '间接上级审阅已提交，进入部门经理确认。');
+          break;
+        case 'submit-department-review':
           demoState.stage = 'HR 计算与结果输出';
           renderStatus();
-          showPage('result', '审阅结果已提交，进入 HR 计算环节。');
+          showPage('result', '部门经理确认已提交，进入 HR 计算环节。');
           break;
         case 'export-range':
           openModal(
