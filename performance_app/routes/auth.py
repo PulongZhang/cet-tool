@@ -37,6 +37,11 @@ def login():
     return jsonify({"user": public_user(user)})
 
 
+@bp.post("/auth/logout")
+def logout():
+    return jsonify({"status": "ok"})
+
+
 @bp.get("/auth/me")
 def me():
     user_id = request.headers.get("X-User-Id")

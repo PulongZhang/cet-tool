@@ -75,3 +75,13 @@ def test_me_requires_user_header(tmp_path):
 
     assert response.status_code == 401
     assert response.get_json() == {"error": "X-User-Id header is required"}
+
+
+def test_logout_returns_ok_for_stateless_session(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+
+    response = client.post("/auth/logout")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "ok"}

@@ -80,3 +80,11 @@ def update_cycle_status(cycle_id: int, expected_status: str, new_status: str) ->
     if cursor.rowcount == 0:
         return None
     return get_cycle(cycle_id)
+
+
+def delete_preparing_cycle(cycle_id: int) -> dict | None:
+    cycle = get_cycle(cycle_id)
+    if cycle is None or cycle["status"] != "PREPARING":
+        return None
+    get_db().execute("delete from evaluation_cycle where id = ?", (cycle_id,))
+    return cycle

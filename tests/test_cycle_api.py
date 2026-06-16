@@ -80,3 +80,25 @@ def test_cycle_actions_write_audit_log(tmp_path):
         ).fetchall()
 
     assert rows == [("admin", "管理员", "CREATE_CYCLE", "evaluation_cycle", "1")]
+
+
+def test_delete_preparing_cycle_and_reject_active_cycle_delete(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+    client.post("/cycles", json={"cycle_name": "2026-Q2", "start_date": "2026-04-01", "end_date": "2026-06-30"})
+    client.post("/cycles", json={"cycle_name": "2026-Q3", "start_date": "2026-07-01", "end_date": "2026-09-30"})
+
+    deleted = client.delete("/cycles/1", headers={"X-Operator-Id": "admin", "X-Operator-Name": "管理员"})
+    client.post("/cycles/2/start")
+    active_delete = client.delete("/cycles/2")
+
+    assert deleted.status_code == 200
+    assert deleted.get_json() == {"deleted": True}
+    assert active_delete.status_code == 409
+    assert active_delete.get_json() == {"error": "only PREPARING cycles can be deleted"}
+
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        cycles = connection.execute("select cycle_name from evaluation_cycle order by id").fetchall()
+        delete_audit_count = connection.execute("select count(*) from audit_log where action = 'DELETE_CYCLE'").fetchone()[0]
+    assert cycles == [("2026-Q3",)]
+    assert delete_audit_count == 1

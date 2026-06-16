@@ -6,6 +6,7 @@ from performance_app.db import get_db
 from performance_app.repositories.audit import write_audit_log
 from performance_app.repositories.cycles import (
     create_cycle,
+    delete_preparing_cycle,
     has_active_cycle,
     list_cycles,
     update_cycle_status,
@@ -102,3 +103,25 @@ def cycles_close(cycle_id: int):
     )
     get_db().commit()
     return jsonify({"cycle": cycle})
+
+
+@bp.delete("/cycles/<int:cycle_id>")
+def cycles_delete(cycle_id: int):
+    cycle = delete_preparing_cycle(cycle_id)
+    if cycle is None:
+        return jsonify({"error": "only PREPARING cycles can be deleted"}), 409
+
+    operator_id, operator_name = operator()
+    write_audit_log(
+        action="DELETE_CYCLE",
+        target_type="evaluation_cycle",
+        target_id=cycle_id,
+        operator_id=operator_id,
+        operator_name=operator_name,
+        cycle_id=cycle_id,
+        before_snapshot=cycle,
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get("User-Agent"),
+    )
+    get_db().commit()
+    return jsonify({"deleted": True})
