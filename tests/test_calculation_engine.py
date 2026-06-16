@@ -37,7 +37,7 @@ def test_calculate_weighted_score_for_management():
     assert result.weighted_score == 89.2
 
 
-def test_rank_records_sorts_by_group_score_and_emp_id():
+def test_rank_records_sorts_by_group_score_and_uses_same_rank_for_ties():
     ranked = rank_records(
         [
             {"record_id": 1, "emp_id": "E002", "group_code": "EMPLOYEE_P1_3", "weighted_score": 90.0},
@@ -62,10 +62,10 @@ def test_rank_records_sorts_by_group_score_and_emp_id():
             "emp_id": "E002",
             "group_code": "EMPLOYEE_P1_3",
             "weighted_score": 90.0,
-            "rank_in_group": 2,
+            "rank_in_group": 1,
             "rank_total": 2,
-            "rank_pct": 100.0,
-            "suggested_level": "D",
+            "rank_pct": 50.0,
+            "suggested_level": "B+",
         },
         {
             "record_id": 3,

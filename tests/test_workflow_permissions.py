@@ -10,7 +10,7 @@ def test_next_status_allows_core_review_flow():
     assert next_status("DIRECT_PENDING", "submit_manager") == "INDIRECT_PENDING"
     assert next_status("INDIRECT_PENDING", "submit_indirect") == "DEPT_HEAD_PENDING"
     assert next_status("DEPT_HEAD_PENDING", "submit_dept_head") == "HR_PENDING"
-    assert next_status("HR_PENDING", "calculate") == "COMPLETED"
+    assert next_status("HR_PENDING", "calculate") == "INITIAL_CALCULATED"
 
 
 def test_next_status_rejects_invalid_transition():
@@ -23,7 +23,8 @@ def test_withdraw_status_matches_spec_matrix():
     assert withdraw_status("INDIRECT_PENDING") == "DIRECT_DRAFT"
     assert withdraw_status("DEPT_HEAD_PENDING") == "INDIRECT_PENDING"
     assert withdraw_status("HR_PENDING") == "DEPT_HEAD_PENDING"
-    assert withdraw_status("COMPLETED") == "COMPLETED"
+    assert withdraw_status("INITIAL_CALCULATED") == "HR_PENDING"
+    assert withdraw_status("FINAL_CONFIRMED") == "FINAL_CONFIRMED"
 
 
 def test_can_view_record_uses_roles_and_data_scope():

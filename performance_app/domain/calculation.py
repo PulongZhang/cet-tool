@@ -82,12 +82,17 @@ def rank_records(records: list[dict]) -> list[dict]:
     for group_code, group_items in groupby(sorted_records, key=itemgetter("group_code")):
         group = list(group_items)
         total = len(group)
+        previous_score: float | None = None
+        current_rank = 0
         for index, item in enumerate(group, start=1):
-            rank_pct = round(index / total * 100, 1)
+            if item["weighted_score"] != previous_score:
+                current_rank = index
+                previous_score = item["weighted_score"]
+            rank_pct = round(current_rank / total * 100, 1)
             ranked.append(
                 {
                     **item,
-                    "rank_in_group": index,
+                    "rank_in_group": current_rank,
                     "rank_total": total,
                     "rank_pct": rank_pct,
                     "suggested_level": final_level_from_rank_pct(rank_pct),
