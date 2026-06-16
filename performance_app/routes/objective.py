@@ -1,10 +1,21 @@
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
+from performance_app.services.excel_import import OBJECTIVE_HEADERS, build_template, parse_objective_workbook
 from performance_app.services.objective_import import correct_objective_data, import_objective_rows
 
 bp = Blueprint("objective", __name__)
+
+
+@bp.get("/objective/template")
+def objective_template():
+    return send_file(
+        build_template(OBJECTIVE_HEADERS),
+        as_attachment=True,
+        download_name="objective-template.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 @bp.post("/objective/import")
@@ -21,6 +32,25 @@ def import_objective_data():
     operator_id = request.headers.get("X-Operator-Id", "system")
     operator_name = request.headers.get("X-Operator-Name", operator_id)
     result = import_objective_rows(int(cycle_id), file_name, rows, operator_id, operator_name)
+    return jsonify(result)
+
+
+@bp.post("/objective/upload")
+def upload_objective_data():
+    cycle_id = request.form.get("cycle_id", type=int)
+    if not cycle_id:
+        return jsonify({"error": "cycle_id is required"}), 400
+    uploaded_file = request.files.get("file")
+    if uploaded_file is None:
+        return jsonify({"error": "file is required"}), 400
+    try:
+        rows = parse_objective_workbook(uploaded_file)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    operator_id = request.headers.get("X-Operator-Id", "system")
+    operator_name = request.headers.get("X-Operator-Name", operator_id)
+    result = import_objective_rows(cycle_id, uploaded_file.filename or "objective.xlsx", rows, operator_id, operator_name)
     return jsonify(result)
 
 
