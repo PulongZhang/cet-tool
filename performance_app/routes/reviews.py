@@ -10,6 +10,7 @@ from performance_app.repositories.records import (
     distribution_for_records,
     get_record,
     list_review_records,
+    list_scope_records,
     update_record_field,
     update_status,
 )
@@ -20,6 +21,14 @@ bp = Blueprint("reviews", __name__)
 
 def cycle_id_from_request() -> int | None:
     return request.args.get("cycle_id", type=int) or (request.get_json(silent=True) or {}).get("cycle_id")
+
+
+def blocking_records(records: list[dict], expected_status: str, relevant_statuses: set[str]) -> list[dict]:
+    return [
+        {"record_id": record["id"], "emp_id": record["emp_id"], "status": record["status"]}
+        for record in records
+        if record["status"] in relevant_statuses and record["status"] != expected_status
+    ]
 
 
 @bp.get("/reviews/indirect")
@@ -54,6 +63,10 @@ def indirect_submit():
     cycle_id = cycle_id_from_request()
     if not cycle_id:
         return jsonify({"error": "cycle_id is required"}), 400
+    scope_records = list_scope_records(cycle_id, "indirect_manager_id", user["emp_id"])
+    blocking = blocking_records(scope_records, "INDIRECT_PENDING", {"DIRECT_PENDING", "DIRECT_DRAFT", "INDIRECT_PENDING"})
+    if blocking:
+        return jsonify({"error": "not all scoped records are ready to submit", "blocking_records": blocking}), 409
     updated = bulk_update_status(cycle_id, "indirect_manager_id", user["emp_id"], "INDIRECT_PENDING", "DEPT_HEAD_PENDING")
     get_db().commit()
     return jsonify({"updated_count": updated})
@@ -91,6 +104,10 @@ def dept_head_submit():
     cycle_id = cycle_id_from_request()
     if not cycle_id:
         return jsonify({"error": "cycle_id is required"}), 400
+    scope_records = list_scope_records(cycle_id, "dept_head_id", user["emp_id"])
+    blocking = blocking_records(scope_records, "DEPT_HEAD_PENDING", {"INDIRECT_PENDING", "DEPT_HEAD_PENDING"})
+    if blocking:
+        return jsonify({"error": "not all scoped records are ready to submit", "blocking_records": blocking}), 409
     updated = bulk_update_status(cycle_id, "dept_head_id", user["emp_id"], "DEPT_HEAD_PENDING", "HR_PENDING")
     get_db().commit()
     return jsonify({"updated_count": updated})

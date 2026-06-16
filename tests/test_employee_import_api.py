@@ -138,7 +138,7 @@ def test_import_employees_records_duplicate_and_invalid_level_errors(tmp_path):
     response = client.post("/cycles/1/employees/import", json={"file_name": "employees.xlsx", "rows": rows})
 
     assert response.status_code == 200
-    assert response.get_json()["summary"] == {"total_count": 3, "success_count": 1, "failed_count": 2}
+    assert response.get_json()["summary"] == {"total_count": 3, "success_count": 0, "failed_count": 2}
     assert response.get_json()["errors"] == [
         {"row_number": 3, "emp_id": "E001", "field_name": "emp_id", "error_message": "duplicate emp_id in import file"},
         {"row_number": 4, "emp_id": "E002", "field_name": "level", "error_message": "Unsupported employee level: P11"},
@@ -154,4 +154,4 @@ def test_import_employees_records_duplicate_and_invalid_level_errors(tmp_path):
         (3, "E001", "emp_id", "duplicate emp_id in import file"),
         (4, "E002", "level", "Unsupported employee level: P11"),
     ]
-    assert snapshot_count == 1
+    assert snapshot_count == 0

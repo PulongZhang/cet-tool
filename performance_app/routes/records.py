@@ -8,6 +8,7 @@ from performance_app.repositories.records import (
     get_my_record,
     get_record,
     list_direct_reports,
+    submit_direct_report_drafts,
     update_manager_score,
     update_self_review,
 )
@@ -100,9 +101,35 @@ def direct_reports():
     return jsonify({"records": list_direct_reports(cycle_id, user["emp_id"])})
 
 
+def blocking_records(records: list[dict], expected_status: str) -> list[dict]:
+    return [
+        {"record_id": record["id"], "emp_id": record["emp_id"], "status": record["status"]}
+        for record in records
+        if record["status"] != expected_status
+    ]
+
+
 @bp.post("/records/<int:record_id>/manager-draft")
 def manager_draft(record_id: int):
     return save_manager(record_id, "DIRECT_DRAFT")
+
+
+@bp.post("/records/direct-reports/submit")
+def submit_direct_reports():
+    user, error = current_user_or_response()
+    if error:
+        return error
+    payload = request.get_json(silent=True) or {}
+    cycle_id = payload.get("cycle_id")
+    if not cycle_id:
+        return jsonify({"error": "cycle_id is required"}), 400
+    reports = list_direct_reports(int(cycle_id), user["emp_id"])
+    blocking = blocking_records(reports, "DIRECT_DRAFT")
+    if blocking:
+        return jsonify({"error": "not all direct reports are ready to submit", "blocking_records": blocking}), 409
+    updated = submit_direct_report_drafts(int(cycle_id), user["emp_id"])
+    get_db().commit()
+    return jsonify({"updated_count": updated})
 
 
 @bp.post("/records/<int:record_id>/manager-submit")

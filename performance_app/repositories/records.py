@@ -135,6 +135,20 @@ def update_record_field(record_id: int, field_name: str, after_value: str) -> di
     return get_record(record_id)
 
 
+def list_scope_records(cycle_id: int, scope_field: str, emp_id: str) -> list[dict]:
+    rows = get_db().execute(
+        f"""
+        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+        from evaluation_record r
+        join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+        where r.cycle_id = ? and s.{scope_field} = ? and r.emp_id != ?
+        order by r.emp_id
+        """,
+        (cycle_id, emp_id, emp_id),
+    ).fetchall()
+    return [row_to_record(row) for row in rows]
+
+
 def bulk_update_status(cycle_id: int, scope_field: str, emp_id: str, from_status: str, to_status: str) -> int:
     cursor = get_db().execute(
         f"""
@@ -148,6 +162,23 @@ def bulk_update_status(cycle_id: int, scope_field: str, emp_id: str, from_status
           )
         """,
         (to_status, cycle_id, from_status, cycle_id, emp_id, emp_id),
+    )
+    return cursor.rowcount
+
+
+def submit_direct_report_drafts(cycle_id: int, manager_emp_id: str) -> int:
+    cursor = get_db().execute(
+        """
+        update evaluation_record
+        set status = 'INDIRECT_PENDING', submitted_at = datetime('now'), updated_at = datetime('now')
+        where cycle_id = ?
+          and status = 'DIRECT_DRAFT'
+          and emp_id in (
+              select emp_id from cycle_employee_snapshot
+              where cycle_id = ? and direct_manager_id = ? and emp_id != ?
+          )
+        """,
+        (cycle_id, cycle_id, manager_emp_id, manager_emp_id),
     )
     return cursor.rowcount
 

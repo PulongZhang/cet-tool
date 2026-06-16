@@ -84,3 +84,30 @@ def add_import_error(batch_id: int, error: dict, raw_data: dict) -> None:
             str(raw_data),
         ),
     )
+
+
+def list_cycle_employees(cycle_id: int) -> list[dict]:
+    rows = get_db().execute(
+        """
+        select emp_id, emp_name, sequence, level, group_code, dept_name,
+               direct_manager_id, indirect_manager_id, dept_head_id, active
+        from cycle_employee_snapshot
+        where cycle_id = ?
+        order by emp_id
+        """,
+        (cycle_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_import_errors(batch_id: int) -> list[dict]:
+    rows = get_db().execute(
+        """
+        select row_number, emp_id, field_name, error_message
+        from import_error
+        where batch_id = ?
+        order by row_number
+        """,
+        (batch_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]

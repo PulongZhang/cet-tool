@@ -88,6 +88,19 @@ def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operat
             continue
         valid_rows.append(normalized)
 
+    if errors:
+        update_import_batch_counts(batch_id, 0, len(errors))
+        get_db().commit()
+        return {
+            "batch_id": batch_id,
+            "summary": {
+                "total_count": len(rows),
+                "success_count": 0,
+                "failed_count": len(errors),
+            },
+            "errors": errors,
+        }
+
     roles_by_emp_id = role_map_for_rows(valid_rows)
     for row in valid_rows:
         upsert_snapshot(cycle_id, row, row["group_code"])
@@ -99,7 +112,7 @@ def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operat
             sorted(roles_by_emp_id[row["emp_id"]]),
         )
 
-    update_import_batch_counts(batch_id, len(valid_rows), len(errors))
+    update_import_batch_counts(batch_id, len(valid_rows), 0)
     get_db().commit()
 
     return {
@@ -107,7 +120,7 @@ def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operat
         "summary": {
             "total_count": len(rows),
             "success_count": len(valid_rows),
-            "failed_count": len(errors),
+            "failed_count": 0,
         },
-        "errors": errors,
+        "errors": [],
     }
