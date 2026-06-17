@@ -302,6 +302,12 @@ textarea { min-height: 120px; resize: vertical; }
     line-height: 1.55;
 }
 
+.prototype-note {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
 .timeline {
     display: grid;
     gap: 10px;

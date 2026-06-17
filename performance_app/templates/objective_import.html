@@ -1,13 +1,25 @@
 {% extends "base.html" %}
 {% block title %}客观数据导入 - 绩效考核评分工具{% endblock %}
+{% block page_title %}客观数据导入{% endblock %}
+{% block page_subtitle %}HR 下载模板、上传 objective.xlsx，系统转换勤奋/纪律/学习等级。{% endblock %}
 {% block content %}
-<h1>客观数据导入</h1>
-<section class="card">
-    <p><a href="/objective/template">下载客观数据模板</a>，填写后上传 <strong>objective.xlsx</strong>。</p>
-    <form method="post" action="/objective/upload" enctype="multipart/form-data" data-api="/objective/upload">
-        <label>周期 ID <input name="cycle_id" value="1"></label>
-        <label>Excel 文件 <input name="file" type="file" accept=".xlsx"></label>
-        <button type="submit">上传客观数据</button>
-    </form>
+<section class="grid cols-2">
+    <div class="card">
+        <h2>上传客观数据</h2>
+        <p><a class="btn" href="/objective/template">下载客观数据模板</a></p>
+        <form method="post" action="/page/objective-upload" enctype="multipart/form-data" class="form-grid">
+            <div class="label">周期 ID</div><input name="cycle_id" value="{{ cycle_id or '' }}">
+            <div class="label">Excel 文件</div><input name="file" type="file" accept=".xlsx">
+            <div></div><button class="btn primary" type="submit">上传 objective.xlsx</button>
+        </form>
+    </div>
+    <div class="card">
+        <h2>导入说明</h2>
+        <div class="hint">
+            勤奋导入 3 个月点数并按月均转换；纪律按异常次数转换；学习按组内时长排名转换。
+            上传后复用后端客观数据导入服务，错误行会进入导入错误表。
+        </div>
+        <p class="prototype-note">API 参考：<code>/objective/upload</code>；页面动作：<code>/page/objective-upload</code>；模板：<code>/objective/template</code>。</p>
+    </div>
 </section>
 {% endblock %}

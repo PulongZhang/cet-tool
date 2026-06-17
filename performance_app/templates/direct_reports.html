@@ -1,28 +1,63 @@
 {% extends "base.html" %}
 {% block title %}直接上级评分 - 绩效考核评分工具{% endblock %}
+{% block page_title %}直接上级评分{% endblock %}
+{% block page_subtitle %}直接上级查看管辖下属，自评只读，评分草稿后可批量提交。{% endblock %}
 {% block content %}
-<h1>直接上级评分</h1>
 <section class="card">
     <h2>下属列表</h2>
-    <p>数据接口：<code>/records/direct-reports</code></p>
     <table>
-        <thead><tr><th>工号</th><th>姓名</th><th>状态</th><th>初始总评</th></tr></thead>
-        <tbody><tr><td>E001</td><td>示例员工</td><td>DIRECT_PENDING</td><td>A</td></tr></tbody>
+        <thead><tr><th>工号</th><th>姓名</th><th>部门</th><th>职级</th><th>状态</th><th>当前建议</th></tr></thead>
+        <tbody>
+            {% for record in records %}
+            <tr>
+                <td>{{ record.emp_id }}</td>
+                <td>{{ record.emp_name }}</td>
+                <td>{{ record.dept_name }}</td>
+                <td>{{ record.level }}</td>
+                <td>{{ record.status }}</td>
+                <td>{{ record.current_subjective_level or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="muted">暂无下属记录。</td></tr>
+            {% endfor %}
+        </tbody>
     </table>
 </section>
-<section class="card">
-    <h2>评分表单</h2>
-    <form data-api="/records/{record_id}/manager-draft">
-        <label>维度 1 <select name="manager_score_1"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
-        <label>维度 2 <select name="manager_score_2"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
-        <label>维度 3 <select name="manager_score_3"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
-        <label>初始总评 <select name="initial_total_grade"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
-        <label>评语 <textarea name="manager_comment"></textarea></label>
-        <button type="button">保存评分草稿</button>
-    </form>
-    <form method="post" action="/records/direct-reports/submit" data-api="/records/direct-reports/submit">
-        <label>周期 ID <input name="cycle_id" value="1"></label>
-        <button type="submit">批量提交评分</button>
-    </form>
+
+{% if records %}
+<section class="split">
+    <div class="card">
+        <h2>左侧：员工自评（只读）</h2>
+        {% set first = records[0] %}
+        <p><strong>员工：</strong>{{ first.emp_name }} / {{ first.emp_id }} / {{ first.level }}</p>
+        <p class="muted">工作总结</p>
+        <div class="hint">{{ first.self_summary or '员工尚未填写自评总结。' }}</div>
+        <table style="margin-top:12px">
+            <tbody>
+                <tr><th>产出和质量</th><td>{{ first.self_score_1 or '-' }}</td></tr>
+                <tr><th>主动承担</th><td>{{ first.self_score_2 or '-' }}</td></tr>
+                <tr><th>易用性和可维护</th><td>{{ first.self_score_3 or '-' }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="card">
+        <h2>右侧：上级评分</h2>
+        <form method="post" action="/page/manager-draft" class="form-grid">
+            <input type="hidden" name="record_id" value="{{ first.id }}">
+            <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
+            <div class="label">产出和质量</div><select name="manager_score_1"><option>A</option><option>B+</option><option>B</option><option>C</option></select>
+            <div class="label">主动承担</div><select name="manager_score_2"><option>A</option><option>B+</option><option>B</option><option>C</option></select>
+            <div class="label">易用性和可维护</div><select name="manager_score_3"><option>B+</option><option>A</option><option>B</option><option>C</option></select>
+            <div class="label">初始总分评分</div><select name="initial_total_grade"><option>A</option><option>B+</option><option>B</option><option>C</option></select>
+            <div class="label">整体评语</div><textarea name="manager_comment" placeholder="A/A+/C/D 必填">表现优秀</textarea>
+            <div></div><div class="btnrow"><button class="btn" type="submit">保存草稿</button></div>
+        </form>
+        <form method="post" action="/page/direct-submit" style="margin-top:14px">
+            <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
+            <button class="btn primary" type="submit">批量提交评分</button>
+        </form>
+        <p class="prototype-note">API 参考：<code>/records/direct-reports/submit</code>，页面动作：<code>/page/manager-draft</code>。</p>
+    </div>
 </section>
+{% endif %}
 {% endblock %}

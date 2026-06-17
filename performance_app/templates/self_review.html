@@ -1,17 +1,34 @@
 {% extends "base.html" %}
 {% block title %}我的自评 - 绩效考核评分工具{% endblock %}
+{% block page_title %}我的自评{% endblock %}
+{% block page_subtitle %}员工只能访问自己的考核记录，提交后进入直接上级评分。{% endblock %}
 {% block content %}
-<h1>我的自评</h1>
 <section class="card">
-    <p>先通过 <code>GET /records/my</code> 获取当前周期记录，再保存草稿或提交。</p>
-    <form data-api="/records/my">
-        <label>周期 ID <input name="cycle_id" value="1"></label>
-        <label>工作总结 <textarea name="self_summary" rows="5"></textarea></label>
-        <label>维度 1 <select name="self_score_1"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
-        <label>维度 2 <select name="self_score_2"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
-        <label>维度 3 <select name="self_score_3"><option>A</option><option>B+</option><option>B</option><option>C</option></select></label>
-        <button type="button">保存自评草稿</button>
-        <button type="button">提交自评</button>
+    <h2>我的考核记录</h2>
+    {% if record %}
+    <div class="demo-status">
+        <div class="status-item">姓名<strong>{{ record.emp_name }}</strong></div>
+        <div class="status-item">工号<strong>{{ record.emp_id }}</strong></div>
+        <div class="status-item">部门<strong>{{ record.dept_name }}</strong></div>
+        <div class="status-item">职级<strong>{{ record.level }}</strong></div>
+        <div class="status-item">当前状态<strong>{{ record.status }}</strong></div>
+    </div>
+    <form method="post" action="/page/self-draft" class="form-grid">
+        <input type="hidden" name="record_id" value="{{ record.id }}">
+        <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
+        <div class="label">工作总结</div><textarea name="self_summary" placeholder="填写本季度主要工作内容、成果、亮点">{{ record.self_summary or '' }}</textarea>
+        <div class="label">产出和质量</div><select name="self_score_1"><option>{{ record.self_score_1 or 'A' }}</option><option>B+</option><option>B</option><option>C</option></select>
+        <div class="label">主动承担</div><select name="self_score_2"><option>{{ record.self_score_2 or 'B+' }}</option><option>A</option><option>B</option><option>C</option></select>
+        <div class="label">易用性和可维护</div><select name="self_score_3"><option>{{ record.self_score_3 or 'A' }}</option><option>B+</option><option>B</option><option>C</option></select>
+        <div></div>
+        <div class="btnrow">
+            <button class="btn" type="submit">保存草稿</button>
+            <button class="btn primary" type="submit" formaction="/page/self-submit">提交自评</button>
+        </div>
     </form>
+    <p class="prototype-note">API 参考：<code>/records/my</code>，页面动作：<code>/page/self-submit</code>。</p>
+    {% else %}
+    <div class="hint">当前周期下没有找到你的考核记录，请联系 HR 导入人员名单。</div>
+    {% endif %}
 </section>
 {% endblock %}

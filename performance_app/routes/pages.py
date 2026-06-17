@@ -7,6 +7,14 @@ from flask import Blueprint, redirect, render_template, request, session, url_fo
 from werkzeug.security import check_password_hash
 
 from performance_app.repositories.accounts import find_by_id, find_by_username
+from performance_app.repositories.cycles import list_cycles
+from performance_app.repositories.records import (
+    distribution_for_records,
+    get_my_record,
+    list_direct_reports,
+    list_review_records,
+)
+from performance_app.services.calculation_runner import list_cycle_results
 
 bp = Blueprint("pages", __name__)
 
@@ -49,6 +57,18 @@ def nav_items_for(user: dict | None) -> list[dict]:
     return [item for item in NAV_ITEMS if user_has_any_role(user, item["roles"])]
 
 
+def available_cycles() -> list[dict]:
+    return list_cycles()
+
+
+def selected_cycle_id() -> int | None:
+    requested = request.args.get("cycle_id", type=int)
+    if requested:
+        return requested
+    cycles = available_cycles()
+    return cycles[0]["id"] if cycles else None
+
+
 def login_required(view: Callable):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -89,7 +109,7 @@ def inject_page_context():
 @bp.get("/")
 @login_required
 def dashboard():
-    return render_template("dashboard.html")
+    return render_template("dashboard.html", cycles=available_cycles(), cycle_id=selected_cycle_id())
 
 
 @bp.get("/login")
@@ -123,34 +143,60 @@ def logout_page():
 @bp.get("/self-review")
 @role_required("EMPLOYEE")
 def self_review_page():
-    return render_template("self_review.html")
+    cycle_id = selected_cycle_id()
+    user = current_page_user()
+    record = get_my_record(cycle_id, user["emp_id"]) if cycle_id else None
+    return render_template("self_review.html", cycles=available_cycles(), cycle_id=cycle_id, record=record)
 
 
 @bp.get("/direct-reports")
 @role_required("DIRECT_MANAGER")
 def direct_reports_page():
-    return render_template("direct_reports.html")
+    cycle_id = selected_cycle_id()
+    user = current_page_user()
+    records = list_direct_reports(cycle_id, user["emp_id"]) if cycle_id else []
+    return render_template("direct_reports.html", cycles=available_cycles(), cycle_id=cycle_id, records=records)
 
 
 @bp.get("/reviews/indirect/page")
 @role_required("INDIRECT_MANAGER")
 def indirect_review_page():
-    return render_template("indirect_review.html")
+    cycle_id = selected_cycle_id()
+    user = current_page_user()
+    records = list_review_records(cycle_id, "indirect_manager_id", user["emp_id"], "INDIRECT_PENDING") if cycle_id else []
+    return render_template(
+        "indirect_review.html",
+        cycles=available_cycles(),
+        cycle_id=cycle_id,
+        records=records,
+        distribution=distribution_for_records(records),
+    )
 
 
 @bp.get("/reviews/dept-head/page")
 @role_required("DEPT_HEAD")
 def dept_review_page():
-    return render_template("dept_review.html")
+    cycle_id = selected_cycle_id()
+    user = current_page_user()
+    records = list_review_records(cycle_id, "dept_head_id", user["emp_id"], "DEPT_HEAD_PENDING") if cycle_id else []
+    return render_template(
+        "dept_review.html",
+        cycles=available_cycles(),
+        cycle_id=cycle_id,
+        records=records,
+        distribution=distribution_for_records(records),
+    )
 
 
 @bp.get("/objective/import/page")
 @role_required("HRBP", "ADMIN")
 def objective_import_page():
-    return render_template("objective_import.html")
+    return render_template("objective_import.html", cycles=available_cycles(), cycle_id=selected_cycle_id())
 
 
 @bp.get("/results")
 @role_required("HRBP", "ADMIN")
 def results_page():
-    return render_template("results.html")
+    cycle_id = selected_cycle_id()
+    records = list_cycle_results(cycle_id) if cycle_id else []
+    return render_template("results.html", cycles=available_cycles(), cycle_id=cycle_id, records=records)
