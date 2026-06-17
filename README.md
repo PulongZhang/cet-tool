@@ -15,7 +15,7 @@ uv run python run.py
 uv run python -m flask --app performance_app run --debug
 ```
 
-启动时应用会读取 `DATABASE` 配置。默认数据库路径为 `data/performance_review.sqlite3`。如果数据库文件不存在，应用会自动创建父目录、SQLite 文件、业务表、索引、角色初始数据、内置角色账号和 `schema_version` 记录；如果文件已存在，启动过程不会清空已有业务数据。
+启动时应用会读取 `DATABASE` 配置。默认数据库路径为 `data/performance_review.sqlite3`。如果数据库文件不存在，应用会自动创建父目录、SQLite 文件、业务表、索引、角色初始数据、内置角色账号、演示周期数据和 `schema_version` 记录；如果文件已存在，启动过程不会清空已有业务数据。
 
 内置账号默认密码均为 `admin123`：
 
@@ -27,6 +27,8 @@ uv run python -m flask --app performance_app run --debug
 | `dept` | DEPT_HEAD |
 | `hr` | HRBP |
 | `admin` | ADMIN + HRBP |
+
+默认启动会在空库中创建 `2026-Q2 演示周期`，并内置一条可串完整流程的上下级关系：`employee` 的直接上级是 `direct`，间接上级是 `indirect`，部门负责人是 `dept`；`hr` 和 `admin` 可进入 HR/管理页面导入客观数据、计算和确认结果。若库中已存在周期，则不会额外追加演示周期。
 
 ## 测试
 

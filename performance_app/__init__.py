@@ -11,10 +11,13 @@ def create_app(test_config: dict | None = None) -> Flask:
         SECRET_KEY="dev-only-change-before-production",
         DATABASE=str(Path("data") / "performance_review.sqlite3"),
         EXPORT_DIR=str(Path("exports")),
+        SEED_DEMO_DATA=True,
     )
 
     if test_config:
         app.config.update(test_config)
+    if app.config.get("TESTING") and (not test_config or "SEED_DEMO_DATA" not in test_config):
+        app.config["SEED_DEMO_DATA"] = False
 
     from performance_app import db
     from performance_app.routes import auth, cycles, employees, exports, health, objective, page_actions, pages, records, results, reviews

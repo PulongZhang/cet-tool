@@ -90,6 +90,49 @@ def test_create_app_creates_sqlite_file_and_schema(tmp_path):
         assert account_roles == expected_roles
 
 
+def test_create_app_seeds_demo_workflow_data(tmp_path):
+    db_path = tmp_path / "performance_review.sqlite3"
+
+    create_app({"TESTING": True, "DATABASE": str(db_path), "SEED_DEMO_DATA": True})
+
+    with sqlite3.connect(db_path) as connection:
+        cycle = connection.execute(
+            "select id, cycle_name, status from evaluation_cycle where cycle_name = '2026-Q2 演示周期'"
+        ).fetchone()
+        snapshots = connection.execute(
+            """
+            select emp_id, emp_name, group_code, direct_manager_id, indirect_manager_id, dept_head_id
+            from cycle_employee_snapshot
+            where cycle_id = ?
+            order by emp_id
+            """,
+            (cycle[0],),
+        ).fetchall()
+        records = connection.execute(
+            "select emp_id, status from evaluation_record where cycle_id = ? order by emp_id",
+            (cycle[0],),
+        ).fetchall()
+        objective = connection.execute(
+            "select emp_id, diligence_level, discipline_level, learning_level from objective_data where cycle_id = ? and emp_id = 'employee'",
+            (cycle[0],),
+        ).fetchone()
+
+    assert cycle[1:] == ("2026-Q2 演示周期", "ACTIVE")
+    assert snapshots == [
+        ("dept", "内置部门负责人", "MANAGEMENT", "dept", "dept", "dept"),
+        ("direct", "内置直接上级", "MANAGEMENT", "indirect", "dept", "dept"),
+        ("employee", "内置演示员工", "EMPLOYEE_P4_10", "direct", "indirect", "dept"),
+        ("indirect", "内置间接上级", "MANAGEMENT", "dept", "dept", "dept"),
+    ]
+    assert records == [
+        ("dept", "SELF_PENDING"),
+        ("direct", "SELF_PENDING"),
+        ("employee", "SELF_PENDING"),
+        ("indirect", "SELF_PENDING"),
+    ]
+    assert objective == ("employee", "A", "A+", "D")
+
+
 def test_create_app_does_not_destroy_existing_database(tmp_path):
     db_path = tmp_path / "performance_review.sqlite3"
     create_app({"TESTING": True, "DATABASE": str(db_path)})
@@ -108,6 +151,6 @@ def test_create_app_does_not_destroy_existing_database(tmp_path):
     create_app({"TESTING": True, "DATABASE": str(db_path)})
 
     with sqlite3.connect(db_path) as connection:
-        count = connection.execute("select count(*) from evaluation_cycle").fetchone()[0]
+        cycles = connection.execute("select cycle_name from evaluation_cycle order by id").fetchall()
 
-    assert count == 1
+    assert cycles == [("2026-Q2",)]

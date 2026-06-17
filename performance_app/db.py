@@ -16,6 +16,53 @@ DEFAULT_BUILT_IN_ACCOUNTS = {
     "hr": ("HRBP",),
     "admin": ("ADMIN", "HRBP"),
 }
+DEMO_CYCLE_NAME = "2026-Q2 演示周期"
+DEMO_EMPLOYEES = (
+    {
+        "emp_id": "employee",
+        "emp_name": "内置演示员工",
+        "sequence": "员工序列",
+        "level": "P4",
+        "group_code": "EMPLOYEE_P4_10",
+        "dept_name": "演示部门",
+        "direct_manager_id": "direct",
+        "indirect_manager_id": "indirect",
+        "dept_head_id": "dept",
+    },
+    {
+        "emp_id": "direct",
+        "emp_name": "内置直接上级",
+        "sequence": "管理序列",
+        "level": "不适用",
+        "group_code": "MANAGEMENT",
+        "dept_name": "演示部门",
+        "direct_manager_id": "indirect",
+        "indirect_manager_id": "dept",
+        "dept_head_id": "dept",
+    },
+    {
+        "emp_id": "indirect",
+        "emp_name": "内置间接上级",
+        "sequence": "管理序列",
+        "level": "不适用",
+        "group_code": "MANAGEMENT",
+        "dept_name": "演示部门",
+        "direct_manager_id": "dept",
+        "indirect_manager_id": "dept",
+        "dept_head_id": "dept",
+    },
+    {
+        "emp_id": "dept",
+        "emp_name": "内置部门负责人",
+        "sequence": "管理序列",
+        "level": "不适用",
+        "group_code": "MANAGEMENT",
+        "dept_name": "演示部门",
+        "direct_manager_id": "dept",
+        "indirect_manager_id": "dept",
+        "dept_head_id": "dept",
+    },
+)
 
 
 def get_db() -> sqlite3.Connection:
@@ -62,6 +109,8 @@ def init_database(app: Flask) -> None:
                 f"Database schema version {row[0]} is newer than application version {SCHEMA_VERSION}"
             )
         ensure_built_in_accounts(connection)
+        if app.config.get("SEED_DEMO_DATA", True):
+            ensure_demo_workflow_data(connection)
         connection.commit()
 
 
@@ -88,6 +137,59 @@ def ensure_built_in_accounts(connection: sqlite3.Connection) -> None:
                 "insert or ignore into user_role (user_id, role_code) values (?, ?)",
                 (user_id, role_code),
             )
+
+
+def ensure_demo_workflow_data(connection: sqlite3.Connection) -> None:
+    existing_cycle = connection.execute("select id from evaluation_cycle limit 1").fetchone()
+    if existing_cycle is not None:
+        return
+
+    cursor = connection.execute(
+        """
+        insert into evaluation_cycle (cycle_name, start_date, end_date, status, created_by)
+        values (?, '2026-04-01', '2026-06-30', 'ACTIVE', 'admin')
+        """,
+        (DEMO_CYCLE_NAME,),
+    )
+    cycle_id = cursor.lastrowid
+
+    for employee in DEMO_EMPLOYEES:
+        connection.execute(
+            """
+            insert into cycle_employee_snapshot
+                (cycle_id, emp_id, emp_name, sequence, level, group_code, dept_name,
+                 direct_manager_id, indirect_manager_id, dept_head_id, active)
+            values
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """,
+            (
+                cycle_id,
+                employee["emp_id"],
+                employee["emp_name"],
+                employee["sequence"],
+                employee["level"],
+                employee["group_code"],
+                employee["dept_name"],
+                employee["direct_manager_id"],
+                employee["indirect_manager_id"],
+                employee["dept_head_id"],
+            ),
+        )
+        connection.execute(
+            "insert into evaluation_record (cycle_id, emp_id, status) values (?, ?, 'SELF_PENDING')",
+            (cycle_id, employee["emp_id"]),
+        )
+
+    connection.execute(
+        """
+        insert into objective_data
+            (cycle_id, emp_id, diligence_raw_total, diligence_month_avg, diligence_level,
+             discipline_raw_count, discipline_level, learning_hours, learning_rank_pct, learning_level)
+        values
+            (?, 'employee', 180, 60, 'A', 3, 'A+', 12, 100, 'D')
+        """,
+        (cycle_id,),
+    )
 
 
 def init_app(app: Flask) -> None:
