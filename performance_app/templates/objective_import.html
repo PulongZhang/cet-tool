@@ -6,9 +6,13 @@
 <section class="grid cols-2">
     <div class="card">
         <h2>上传客观数据</h2>
+        <div class="demo-status">
+            <div class="status-item">当前周期<strong>{{ cycle.cycle_name if cycle else '暂无周期' }}</strong></div>
+            <div class="status-item">周期状态<strong>{{ cycle.status if cycle else '-' }}</strong></div>
+        </div>
         <p><a class="btn" href="/objective/template">下载客观数据模板</a></p>
         <form method="post" action="/page/objective-upload" enctype="multipart/form-data" class="form-grid">
-            <div class="label">周期 ID</div><input name="cycle_id" value="{{ cycle_id or '' }}">
+            <input type="hidden" name="cycle_id" value="{{ cycle_id or '' }}">
             <div class="label">Excel 文件</div><input name="file" type="file" accept=".xlsx">
             <div></div><button class="btn primary" type="submit">上传 objective.xlsx</button>
         </form>

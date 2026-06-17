@@ -33,6 +33,16 @@ def form_payload(*fields: str) -> dict:
     return {field: request.form.get(field) for field in fields}
 
 
+def form_cycle_id() -> int | None:
+    raw_cycle_id = request.form.get("cycle_id")
+    if not raw_cycle_id:
+        return None
+    try:
+        return int(raw_cycle_id)
+    except ValueError:
+        return None
+
+
 @bp.post("/page/self-draft")
 @role_required("EMPLOYEE")
 def page_self_draft():
@@ -109,9 +119,11 @@ def page_dept_submit():
 @bp.post("/page/objective-upload")
 @role_required("HRBP", "ADMIN")
 def page_objective_upload():
-    cycle_id = int(request.form["cycle_id"])
+    cycle_id = form_cycle_id()
+    if cycle_id is None:
+        return redirect_with_cycle("/objective/import/page", None)
     uploaded_file = request.files.get("file")
-    if uploaded_file is not None:
+    if uploaded_file is not None and uploaded_file.filename:
         rows = parse_objective_workbook(uploaded_file)
         user = current_page_user()
         import_objective_rows(cycle_id, uploaded_file.filename or "objective.xlsx", rows, user["emp_id"], user["username"])

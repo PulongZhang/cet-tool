@@ -69,6 +69,15 @@ def selected_cycle_id() -> int | None:
     return cycles[0]["id"] if cycles else None
 
 
+def selected_cycle(cycle_id: int | None) -> dict | None:
+    if cycle_id is None:
+        return None
+    for cycle in available_cycles():
+        if cycle["id"] == cycle_id:
+            return cycle
+    return None
+
+
 def login_required(view: Callable):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -191,7 +200,13 @@ def dept_review_page():
 @bp.get("/objective/import/page")
 @role_required("HRBP", "ADMIN")
 def objective_import_page():
-    return render_template("objective_import.html", cycles=available_cycles(), cycle_id=selected_cycle_id())
+    cycle_id = selected_cycle_id()
+    return render_template(
+        "objective_import.html",
+        cycles=available_cycles(),
+        cycle_id=cycle_id,
+        cycle=selected_cycle(cycle_id),
+    )
 
 
 @bp.get("/results")

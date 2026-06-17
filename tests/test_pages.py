@@ -64,5 +64,17 @@ def test_hr_pages_render_import_results_and_export_controls(tmp_path):
     client = app.test_client()
     login(client)
 
-    assert_page_contains(client, "/objective/import/page", ["客观数据导入", "objective.xlsx", "/objective/upload", "/objective/template"])
+    assert_page_contains(client, "/objective/import/page", ["客观数据导入", "objective.xlsx", "/page/objective-upload", "/objective/template"])
     assert_page_contains(client, "/results", ["计算结果与导出", "执行计算", "最终确认", "/page/export-final"])
+
+
+def test_pages_do_not_show_raw_cycle_id_field(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, ("EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD", "HRBP"))
+    client = app.test_client()
+    login(client)
+
+    for path in ["/self-review", "/direct-reports", "/reviews/indirect/page", "/reviews/dept-head/page", "/objective/import/page", "/results"]:
+        response = client.get(path)
+        assert response.status_code == 200
+        assert "周期 ID" not in response.get_data(as_text=True)

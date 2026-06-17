@@ -173,6 +173,21 @@ def test_objective_page_uses_browser_upload_action(tmp_path):
     html = page.get_data(as_text=True)
     assert "/page/objective-upload" in html
     assert "/objective/template" in html
+    assert "周期 ID" not in html
+    assert "2026-Q2" in html
+
+
+def test_objective_upload_without_file_redirects_without_error(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "HR001", "hr", ("HRBP",))
+    client = app.test_client()
+    seed_cycle_people(client)
+    login(client, "hr")
+
+    response = client.post("/page/objective-upload", data={"cycle_id": "1"}, follow_redirects=False)
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/objective/import/page?cycle_id=1")
 
 
 def test_hr_results_page_renders_calculated_records(tmp_path):
