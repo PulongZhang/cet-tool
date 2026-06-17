@@ -34,14 +34,10 @@ def test_login_accepts_valid_password_and_returns_roles(tmp_path):
     response = client.post("/auth/login", json={"username": "lisi", "password": "secret123"})
 
     assert response.status_code == 200
-    assert response.get_json() == {
-        "user": {
-            "id": 1,
-            "emp_id": "E001",
-            "username": "lisi",
-            "roles": ["DIRECT_MANAGER", "EMPLOYEE"],
-        }
-    }
+    user = response.get_json()["user"]
+    assert user["emp_id"] == "E001"
+    assert user["username"] == "lisi"
+    assert user["roles"] == ["DIRECT_MANAGER", "EMPLOYEE"]
 
 
 def test_login_rejects_wrong_password(tmp_path):
@@ -85,3 +81,15 @@ def test_logout_returns_ok_for_stateless_session(tmp_path):
 
     assert response.status_code == 200
     assert response.get_json() == {"status": "ok"}
+
+
+def test_default_admin_can_login(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+
+    response = client.post("/auth/login", json={"username": "admin", "password": "admin123"})
+
+    assert response.status_code == 200
+    assert response.get_json()["user"]["emp_id"] == "admin"
+    assert response.get_json()["user"]["username"] == "admin"
+    assert response.get_json()["user"]["roles"] == ["ADMIN", "HRBP"]

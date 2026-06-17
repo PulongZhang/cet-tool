@@ -1,5 +1,7 @@
 import sqlite3
 
+from werkzeug.security import check_password_hash
+
 from performance_app import create_app
 
 
@@ -43,6 +45,20 @@ def test_create_app_creates_sqlite_file_and_schema(tmp_path):
             row[0]
             for row in connection.execute("select role_code from role_catalog").fetchall()
         }
+        admin_row = connection.execute(
+            "select id, emp_id, username, password_hash, status from user_account where username = 'admin'"
+        ).fetchone()
+        admin_roles = {
+            row[0]
+            for row in connection.execute(
+                """
+                select role_code
+                from user_role
+                where user_id = ?
+                """,
+                (admin_row[0],),
+            ).fetchall()
+        }
 
     assert version == 1
     assert roles == {
@@ -53,6 +69,11 @@ def test_create_app_creates_sqlite_file_and_schema(tmp_path):
         "HRBP",
         "ADMIN",
     }
+    assert admin_row[1] == "admin"
+    assert admin_row[2] == "admin"
+    assert check_password_hash(admin_row[3], "admin123")
+    assert admin_row[4] == "ACTIVE"
+    assert admin_roles == {"ADMIN", "HRBP"}
 
 
 def test_create_app_does_not_destroy_existing_database(tmp_path):
