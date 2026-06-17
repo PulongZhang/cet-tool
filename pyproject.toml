@@ -1,0 +1,17 @@
+[project]
+name = "cet-tool"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "Flask==3.0.3",
+    "Werkzeug==3.0.3",
+    "openpyxl==3.1.5",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.2.2",
+]
+
+[tool.uv]
+package = false
