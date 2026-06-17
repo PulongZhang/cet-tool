@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 {% block title %}部门负责人确认 - 绩效考核评分工具{% endblock %}
 {% block page_title %}部门负责人确认{% endblock %}
-{% block page_subtitle %}部门负责人确认部门范围记录，提交后进入 HR 计算。{% endblock %}
+{% block page_subtitle %}部门负责人确认部门范围记录，必要时调整建议等级，提交后进入 HR 计算。{% endblock %}
 {% block content %}
-<section class="card"><h2>比例分布</h2></section>
 <section class="grid cols-3">
     {% for level, count in distribution.items() %}
-    <div class="card"><h3>{{ level }} 占比</h3><div class="metric">{{ count }}</div><span class="tag">当前人数</span></div>
+    <div class="card"><h3>{{ level }} 人数</h3><div class="metric">{{ count }}</div><span class="tag">当前建议等级</span></div>
     {% else %}
-    <div class="card"><h3>暂无待确认记录</h3><div class="metric">0</div><span class="tag gray">DEPT_HEAD_PENDING</span></div>
+    <div class="card"><h3>暂无待确认记录</h3><div class="metric">0</div><span class="tag gray">待部门负责人确认</span></div>
     {% endfor %}
 </section>
 
@@ -24,17 +23,38 @@
                 <td>{{ record.dept_name }}</td>
                 <td>{{ record.level }}</td>
                 <td>{{ record.current_subjective_level or '-' }}</td>
-                <td>{{ record.status }}</td>
+                <td>{{ status_label(record.status) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="6" class="muted">暂无待部门负责人确认记录。</td></tr>
+            <tr><td colspan="6" class="muted">暂无待部门负责人确认记录。请先完成间接上级审阅提交。</td></tr>
             {% endfor %}
         </tbody>
     </table>
+</section>
+
+{% if records %}
+<section class="card">
+    <h2>逐条确认 / 调整</h2>
+    <div class="timeline">
+        {% for record in records %}
+        <form method="post" action="/page/record-adjustment" class="event form-grid">
+            <input type="hidden" name="record_id" value="{{ record.id }}">
+            <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
+            <input type="hidden" name="return_to" value="/reviews/dept-head/page">
+            <input type="hidden" name="field_name" value="current_subjective_level">
+            <div class="label">员工</div><div><strong>{{ record.emp_name }}</strong> / {{ record.emp_id }} / 当前 {{ record.current_subjective_level or '-' }}</div>
+            <div class="label">确认等级</div>
+            <select name="after_value"><option>{{ record.current_subjective_level or 'B+' }}</option><option>A+</option><option>A</option><option>B+</option><option>B</option><option>B-</option><option>C</option><option>D</option></select>
+            <div class="label">确认原因</div><input name="reason" placeholder="填写确认或调整原因" required>
+            <div></div><button class="btn" type="submit">保存{{ record.emp_name }}确认</button>
+        </form>
+        {% endfor %}
+    </div>
     <form method="post" action="/page/dept-submit" style="margin-top:14px">
         <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
         <button class="btn primary" type="submit">提交部门负责人确认</button>
     </form>
-    <p class="prototype-note">API 参考：<code>/reviews/dept-head/submit</code>；页面动作：<code>/page/dept-submit</code>。</p>
+    <p class="prototype-note">提交后，当前范围内待部门负责人确认的记录会流转到 HR 计算。</p>
 </section>
+{% endif %}
 {% endblock %}

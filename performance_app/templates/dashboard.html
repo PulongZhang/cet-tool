@@ -6,8 +6,8 @@
 <div class="demo-status" role="region" aria-label="当前状态">
     <div class="status-item">当前用户<strong>{{ current_user.username }}</strong></div>
     <div class="status-item">当前角色<strong>{{ current_roles | join(' / ') }}</strong></div>
-    <div class="status-item">可访问页面<strong>{{ nav_items | length }}</strong></div>
-    <div class="status-item">登录状态<strong>已登录</strong></div>
+    <div class="status-item">当前主要阶段<strong>{{ progress.current_stage }}</strong></div>
+    <div class="status-item">周期记录数<strong>{{ progress.total }} 人</strong></div>
     <div class="status-item">操作模式<strong>真实后端</strong></div>
 </div>
 {% endblock %}
@@ -15,17 +15,14 @@
 <section class="card">
     <h2>流程进度</h2>
     <div class="flow">
-        <div class="step done">准备工作<br><span class="muted">周期/人员</span></div>
-        <span class="arrow">→</span>
-        <div class="step active">员工自评<br><span class="muted">按角色处理</span></div>
-        <span class="arrow">→</span>
-        <div class="step">直接上级评分</div>
-        <span class="arrow">→</span>
-        <div class="step">间接上级审阅</div>
-        <span class="arrow">→</span>
-        <div class="step">部门负责人确认</div>
-        <span class="arrow">→</span>
-        <div class="step">HR 计算导出</div>
+        {% for stage in progress.stages %}
+        <div class="step {% if stage.title == progress.current_stage %}active{% elif stage.count == 0 and progress.total > 0 %}done{% endif %}">
+            {{ stage.title }}<br><span class="muted">{{ stage.count }} 人</span>
+        </div>
+        {% if not loop.last %}<span class="arrow">→</span>{% endif %}
+        {% else %}
+        <div class="step active">暂无周期数据<br><span class="muted">0 人</span></div>
+        {% endfor %}
     </div>
 </section>
 

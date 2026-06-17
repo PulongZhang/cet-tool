@@ -8,7 +8,7 @@
         <h2>上传客观数据</h2>
         <div class="demo-status">
             <div class="status-item">当前周期<strong>{{ cycle.cycle_name if cycle else '暂无周期' }}</strong></div>
-            <div class="status-item">周期状态<strong>{{ cycle.status if cycle else '-' }}</strong></div>
+            <div class="status-item">周期状态<strong>{{ status_label(cycle.status) if cycle else '-' }}</strong></div>
         </div>
         <p><a class="btn" href="/objective/template">下载客观数据模板</a></p>
         <form method="post" action="/page/objective-upload" enctype="multipart/form-data" class="form-grid">

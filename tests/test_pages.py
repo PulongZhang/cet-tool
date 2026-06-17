@@ -54,8 +54,8 @@ def test_workflow_role_pages_render_core_sections(tmp_path):
 
     assert_page_contains(client, "/self-review", ["我的自评", "我的考核记录", "没有找到"])
     assert_page_contains(client, "/direct-reports", ["直接上级评分", "下属列表", "暂无下属记录"])
-    assert_page_contains(client, "/reviews/indirect/page", ["间接上级审阅", "比例分布", "/reviews/indirect/submit"])
-    assert_page_contains(client, "/reviews/dept-head/page", ["部门负责人确认", "比例分布", "/reviews/dept-head/submit"])
+    assert_page_contains(client, "/reviews/indirect/page", ["间接上级审阅", "比例分布", "暂无待审阅记录"])
+    assert_page_contains(client, "/reviews/dept-head/page", ["部门负责人确认", "暂无待确认记录"])
 
 
 def test_hr_pages_render_import_results_and_export_controls(tmp_path):

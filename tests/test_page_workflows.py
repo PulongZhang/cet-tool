@@ -86,6 +86,25 @@ def record_id(app, emp_id):
         return connection.execute("select id from evaluation_record where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
+def test_dashboard_flow_progress_updates_from_record_statuses(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "HR001", "hr_user", ("HRBP",))
+    client = app.test_client()
+    seed_cycle_people(client)
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        connection.execute("update evaluation_record set status = 'DIRECT_PENDING' where emp_id = 'E001'")
+        connection.commit()
+    login(client, "hr_user")
+
+    page = client.get("/?cycle_id=1")
+
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "当前主要阶段" in html
+    assert "直接上级评分" in html
+    assert "1 人" in html
+
+
 def test_cycle_management_page_renders_for_hr_and_hides_cycle_id_label(tmp_path):
     app = make_app(tmp_path)
     seed_user(app, "HR001", "hr_user", ("HRBP",))
@@ -161,7 +180,8 @@ def test_self_review_page_renders_record_and_submit_form_updates_status(tmp_path
     assert page.status_code == 200
     html = page.get_data(as_text=True)
     assert "李四" in html
-    assert "SELF_PENDING" in html
+    assert "待员工自评" in html
+    assert "SELF_PENDING" not in html
     assert "/page/self-submit" in html
 
     submitted = client.post(
@@ -254,7 +274,31 @@ def test_self_review_page_actions_ignore_locked_record(tmp_path):
     assert row == ("首次提交", "A", "B+", "A", "DIRECT_PENDING")
 
 
-def test_direct_manager_page_renders_reports_and_draft_form(tmp_path):
+def test_direct_manager_page_renders_per_report_scoring_forms(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "M001", "manager", ("DIRECT_MANAGER",))
+    client = app.test_client()
+    seed_cycle_people(client)
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        connection.execute(
+            "update evaluation_record set status = 'DIRECT_PENDING', self_summary = '完成核心工作' where emp_id = 'E001'"
+        )
+        connection.commit()
+    login(client, "manager")
+
+    page = client.get("/direct-reports?cycle_id=1")
+
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "李四" in html
+    assert "待直接上级评分" in html
+    assert "DIRECT_PENDING" not in html
+    assert "完成核心工作" in html
+    assert "/page/manager-draft" in html
+    assert "保存李四评分草稿" in html
+
+
+def test_direct_manager_page_does_not_offer_scoring_before_self_submit(tmp_path):
     app = make_app(tmp_path)
     seed_user(app, "M001", "manager", ("DIRECT_MANAGER",))
     client = app.test_client()
@@ -262,11 +306,47 @@ def test_direct_manager_page_renders_reports_and_draft_form(tmp_path):
     login(client, "manager")
 
     page = client.get("/direct-reports?cycle_id=1")
+
     assert page.status_code == 200
     html = page.get_data(as_text=True)
-    assert "李四" in html
-    assert "SELF_PENDING" in html
-    assert "/page/manager-draft" in html
+    assert "等待员工提交自评" in html
+    assert "/page/manager-draft" not in html
+
+
+def test_indirect_review_page_adjusts_record_level_from_form(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "M002", "indirect_user", ("INDIRECT_MANAGER",))
+    client = app.test_client()
+    seed_cycle_people(client)
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        connection.execute("update evaluation_record set status = 'INDIRECT_PENDING', current_subjective_level = 'A' where emp_id = 'E001'")
+        connection.commit()
+    login(client, "indirect_user")
+
+    page = client.get("/reviews/indirect/page?cycle_id=1")
+    html = page.get_data(as_text=True)
+    adjusted = client.post(
+        "/page/record-adjustment",
+        data={
+            "record_id": str(record_id(app, "E001")),
+            "cycle_id": "1",
+            "return_to": "/reviews/indirect/page",
+            "field_name": "current_subjective_level",
+            "after_value": "B+",
+            "reason": "统一校准",
+        },
+        follow_redirects=False,
+    )
+
+    assert page.status_code == 200
+    assert "/page/record-adjustment" in html
+    assert "调整建议等级" in html
+    assert adjusted.status_code == 302
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        row = connection.execute("select current_subjective_level from evaluation_record where emp_id = 'E001'").fetchone()
+        log_count = connection.execute("select count(*) from grade_adjustment_log where record_id = ?", (record_id(app, "E001"),)).fetchone()[0]
+    assert row == ("B+",)
+    assert log_count == 1
 
 
 def test_review_pages_render_scoped_records_and_distribution(tmp_path):

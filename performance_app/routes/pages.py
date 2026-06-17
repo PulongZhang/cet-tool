@@ -4,6 +4,8 @@ from functools import wraps
 from typing import Callable
 
 from flask import Blueprint, redirect, render_template, request, session, url_for
+
+from performance_app.db import get_db
 from werkzeug.security import check_password_hash
 
 from performance_app.repositories.accounts import find_by_id, find_by_username
@@ -26,6 +28,29 @@ ROLE_LABELS = {
     "HRBP": "HRBP",
     "ADMIN": "管理员",
 }
+
+STATUS_LABELS = {
+    "SELF_PENDING": "待员工自评",
+    "SELF_DRAFT": "自评草稿",
+    "DIRECT_PENDING": "待直接上级评分",
+    "DIRECT_DRAFT": "直接上级评分草稿",
+    "INDIRECT_PENDING": "待间接上级审阅",
+    "DEPT_HEAD_PENDING": "待部门负责人确认",
+    "HR_PENDING": "待 HR 处理",
+    "INITIAL_CALCULATED": "初评已计算",
+    "FINAL_CONFIRMED": "最终已确认",
+    "PREPARING": "准备中",
+    "ACTIVE": "进行中",
+    "CLOSED": "已关闭",
+}
+
+WORKFLOW_STAGES = (
+    {"title": "员工自评", "statuses": {"SELF_PENDING", "SELF_DRAFT"}},
+    {"title": "直接上级评分", "statuses": {"DIRECT_PENDING", "DIRECT_DRAFT"}},
+    {"title": "间接上级审阅", "statuses": {"INDIRECT_PENDING"}},
+    {"title": "部门负责人确认", "statuses": {"DEPT_HEAD_PENDING"}},
+    {"title": "HR 计算导出", "statuses": {"HR_PENDING", "INITIAL_CALCULATED", "FINAL_CONFIRMED"}},
+)
 
 NAV_ITEMS = [
     {"title": "首页仪表盘", "href": "/", "roles": None},
@@ -79,6 +104,30 @@ def selected_cycle(cycle_id: int | None) -> dict | None:
     return None
 
 
+def status_label(status: str | None) -> str:
+    if not status:
+        return "-"
+    return STATUS_LABELS.get(status, status)
+
+
+def workflow_progress(cycle_id: int | None) -> dict:
+    if cycle_id is None:
+        return {"total": 0, "current_stage": "暂无周期", "stages": []}
+    rows = get_db().execute(
+        "select status, count(*) as count from evaluation_record where cycle_id = ? group by status",
+        (cycle_id,),
+    ).fetchall()
+    status_counts = {row["status"]: row["count"] for row in rows}
+    stages = []
+    for stage in WORKFLOW_STAGES:
+        count = sum(status_counts.get(status, 0) for status in stage["statuses"])
+        stages.append({"title": stage["title"], "count": count})
+    total = sum(stage["count"] for stage in stages)
+    current = next((stage for stage in stages if stage["count"]), None)
+    current_stage = current["title"] if current else "暂无待处理记录"
+    return {"total": total, "current_stage": current_stage, "stages": stages}
+
+
 def login_required(view: Callable):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -113,13 +162,15 @@ def inject_page_context():
         "current_user": user,
         "current_roles": [ROLE_LABELS.get(role, role) for role in user.get("roles", [])] if user else [],
         "nav_items": nav_items_for(user),
+        "status_label": status_label,
     }
 
 
 @bp.get("/")
 @login_required
 def dashboard():
-    return render_template("dashboard.html", cycles=available_cycles(), cycle_id=selected_cycle_id())
+    cycle_id = selected_cycle_id()
+    return render_template("dashboard.html", cycles=available_cycles(), cycle_id=cycle_id, progress=workflow_progress(cycle_id))
 
 
 @bp.get("/login")

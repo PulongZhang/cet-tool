@@ -11,7 +11,7 @@
         <div class="status-item">工号<strong>{{ record.emp_id }}</strong></div>
         <div class="status-item">部门<strong>{{ record.dept_name }}</strong></div>
         <div class="status-item">职级<strong>{{ record.level }}</strong></div>
-        <div class="status-item">当前状态<strong>{{ record.status }}</strong></div>
+        <div class="status-item">当前状态<strong>{{ status_label(record.status) }}</strong></div>
     </div>
     {% if record.status in ['SELF_PENDING', 'SELF_DRAFT'] %}
     <form method="post" action="/page/self-draft" class="form-grid">

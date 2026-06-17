@@ -36,7 +36,7 @@
                 <td>{{ record.rank_in_group }}/{{ record.rank_total }}</td>
                 <td>{{ record.suggested_level }}</td>
                 <td>{{ record.final_level }}</td>
-                <td>{{ record.status }}</td>
+                <td>{{ status_label(record.status) }}</td>
             </tr>
             {% else %}
             <tr><td colspan="8" class="muted">暂无已计算结果。</td></tr>

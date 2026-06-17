@@ -54,7 +54,7 @@
                     {% elif cycle.status == 'CLOSED' %}
                     <span class="tag gray">已关闭</span>
                     {% else %}
-                    <span class="tag">{{ cycle.status }}</span>
+                    <span class="tag">{{ status_label(cycle.status) }}</span>
                     {% endif %}
                 </td>
                 <td>{{ cycle.created_by }}</td>

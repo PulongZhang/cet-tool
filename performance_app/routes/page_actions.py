@@ -12,6 +12,7 @@ from performance_app.repositories.records import (
     submit_direct_report_drafts,
     get_record,
     update_manager_score,
+    update_record_field,
     update_self_review,
 )
 from performance_app.routes.pages import current_page_user, role_required
@@ -152,12 +153,15 @@ def page_self_submit():
 def page_manager_draft():
     record_id = int(request.form["record_id"])
     cycle_id = request.form.get("cycle_id")
-    update_manager_score(
-        record_id,
-        form_payload("manager_score_1", "manager_score_2", "manager_score_3", "manager_comment", "initial_total_grade"),
-        "DIRECT_DRAFT",
-    )
-    get_db().commit()
+    user = current_page_user()
+    record = get_record(record_id)
+    if record is not None and record["direct_manager_id"] == user["emp_id"] and record["status"] in {"DIRECT_PENDING", "DIRECT_DRAFT"}:
+        update_manager_score(
+            record_id,
+            form_payload("manager_score_1", "manager_score_2", "manager_score_3", "manager_comment", "initial_total_grade"),
+            "DIRECT_DRAFT",
+        )
+        get_db().commit()
     return redirect_with_cycle("/direct-reports", cycle_id)
 
 
@@ -172,6 +176,69 @@ def page_direct_submit():
         submit_direct_report_drafts(cycle_id, user["emp_id"])
         get_db().commit()
     return redirect_with_cycle("/direct-reports", cycle_id)
+
+
+@bp.post("/page/record-adjustment")
+@role_required("INDIRECT_MANAGER", "DEPT_HEAD")
+def page_record_adjustment():
+    record_id = int(request.form["record_id"])
+    cycle_id = form_cycle_id()
+    return_to = request.form.get("return_to") or "/"
+    field_name = request.form.get("field_name")
+    after_value = request.form.get("after_value")
+    reason = request.form.get("reason")
+    user = current_page_user()
+    record = get_record(record_id)
+    allowed = False
+    if record is not None:
+        allowed = (
+            record["status"] == "INDIRECT_PENDING" and record["indirect_manager_id"] == user["emp_id"]
+        ) or (
+            record["status"] == "DEPT_HEAD_PENDING" and record["dept_head_id"] == user["emp_id"]
+        )
+    if allowed and field_name and after_value and reason:
+        before_value = record.get(field_name)
+        try:
+            updated = update_record_field(record_id, field_name, after_value)
+        except ValueError:
+            updated = None
+        if updated is not None:
+            stage = "INDIRECT" if record["status"] == "INDIRECT_PENDING" else "DEPT_HEAD"
+            write_audit_log(
+                action="ADJUST_GRADE",
+                target_type="evaluation_record",
+                target_id=record_id,
+                operator_id=user["emp_id"],
+                operator_name=user["username"],
+                cycle_id=record["cycle_id"],
+                before_snapshot={field_name: before_value},
+                after_snapshot={field_name: after_value},
+                reason=reason,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get("User-Agent"),
+            )
+            get_db().execute(
+                """
+                insert into grade_adjustment_log
+                    (cycle_id, record_id, stage, adjustment_type, field_name, before_value, after_value, reason, operator_id, operator_name)
+                values
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    record["cycle_id"],
+                    record_id,
+                    stage,
+                    "SUGGESTED_LEVEL" if field_name == "current_subjective_level" else "SUBJECTIVE_DIMENSION",
+                    field_name,
+                    before_value,
+                    after_value,
+                    reason,
+                    user["emp_id"],
+                    user["username"],
+                ),
+            )
+            get_db().commit()
+    return redirect_with_cycle(return_to, cycle_id)
 
 
 @bp.post("/page/indirect-submit")
