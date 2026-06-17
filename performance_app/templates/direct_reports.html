@@ -48,10 +48,10 @@
                     <form method="post" action="/page/manager-draft" class="form-grid">
                         <input type="hidden" name="record_id" value="{{ record.id }}">
                         <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
-                        <div class="label">产出和质量</div><select name="manager_score_1"><option>{{ record.manager_score_1 or 'A' }}</option><option>A+</option><option>B+</option><option>B</option><option>B-</option><option>C</option><option>D</option></select>
-                        <div class="label">主动承担</div><select name="manager_score_2"><option>{{ record.manager_score_2 or 'A' }}</option><option>A+</option><option>B+</option><option>B</option><option>B-</option><option>C</option><option>D</option></select>
-                        <div class="label">易用性和可维护</div><select name="manager_score_3"><option>{{ record.manager_score_3 or 'B+' }}</option><option>A+</option><option>A</option><option>B</option><option>B-</option><option>C</option><option>D</option></select>
-                        <div class="label">初始总评</div><select name="initial_total_grade"><option>{{ record.initial_total_grade or 'A' }}</option><option>A+</option><option>B+</option><option>B</option><option>B-</option><option>C</option><option>D</option></select>
+                        <div class="label">产出和质量</div><select name="manager_score_1">{% for level in subjective_levels %}<option{% if level == (record.manager_score_1 or 'A') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
+                        <div class="label">主动承担</div><select name="manager_score_2">{% for level in subjective_levels %}<option{% if level == (record.manager_score_2 or 'A') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
+                        <div class="label">易用性和可维护</div><select name="manager_score_3">{% for level in subjective_levels %}<option{% if level == (record.manager_score_3 or 'B+') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
+                        <div class="label">初始总评</div><select name="initial_total_grade">{% for level in subjective_levels %}<option{% if level == (record.initial_total_grade or 'A') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
                         <div class="label">整体评语</div><textarea name="manager_comment" placeholder="A/A+/C/D 必填">{{ record.manager_comment or '' }}</textarea>
                         <div></div><div class="btnrow"><button class="btn" type="submit">保存{{ record.emp_name }}评分草稿</button></div>
                     </form>

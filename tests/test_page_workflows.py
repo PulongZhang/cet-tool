@@ -86,6 +86,27 @@ def record_id(app, emp_id):
         return connection.execute("select id from evaluation_record where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
+SUBJECTIVE_LEVELS = ["A+", "A", "B+", "B", "B-", "C", "D"]
+
+
+def option_values_after(html, marker, count=7):
+    start = html.index(marker)
+    select_start = html.index("<select", start)
+    select_end = html.index("</select>", select_start)
+    select_html = html[select_start:select_end]
+    values = []
+    position = 0
+    while True:
+        option_start = select_html.find("<option", position)
+        if option_start == -1:
+            break
+        value_start = select_html.index(">", option_start) + 1
+        value_end = select_html.index("</option>", value_start)
+        values.append(select_html[value_start:value_end])
+        position = value_end
+    return values[:count]
+
+
 def test_dashboard_flow_progress_updates_from_record_statuses(tmp_path):
     app = make_app(tmp_path)
     seed_user(app, "HR001", "hr_user", ("HRBP",))
@@ -203,6 +224,22 @@ def test_self_review_page_renders_record_and_submit_form_updates_status(tmp_path
     assert status == "DIRECT_PENDING"
 
 
+def test_self_review_rating_selects_use_consistent_order(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "E001", "lisi", ("EMPLOYEE",))
+    client = app.test_client()
+    seed_cycle_people(client)
+    login(client, "lisi")
+
+    page = client.get("/self-review?cycle_id=1")
+
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert option_values_after(html, "产出和质量") == SUBJECTIVE_LEVELS
+    assert option_values_after(html, "主动承担") == SUBJECTIVE_LEVELS
+    assert option_values_after(html, "易用性和可维护") == SUBJECTIVE_LEVELS
+
+
 def test_self_review_page_locks_after_submit(tmp_path):
     app = make_app(tmp_path)
     seed_user(app, "E001", "lisi", ("EMPLOYEE",))
@@ -298,6 +335,26 @@ def test_direct_manager_page_renders_per_report_scoring_forms(tmp_path):
     assert "保存李四评分草稿" in html
 
 
+def test_direct_manager_rating_selects_use_consistent_order(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "M001", "manager", ("DIRECT_MANAGER",))
+    client = app.test_client()
+    seed_cycle_people(client)
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        connection.execute("update evaluation_record set status = 'DIRECT_PENDING' where emp_id = 'E001'")
+        connection.commit()
+    login(client, "manager")
+
+    page = client.get("/direct-reports?cycle_id=1")
+
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert option_values_after(html, "产出和质量") == SUBJECTIVE_LEVELS
+    assert option_values_after(html, "主动承担") == SUBJECTIVE_LEVELS
+    assert option_values_after(html, "易用性和可维护") == SUBJECTIVE_LEVELS
+    assert option_values_after(html, "初始总评") == SUBJECTIVE_LEVELS
+
+
 def test_direct_manager_page_does_not_offer_scoring_before_self_submit(tmp_path):
     app = make_app(tmp_path)
     seed_user(app, "M001", "manager", ("DIRECT_MANAGER",))
@@ -341,6 +398,7 @@ def test_indirect_review_page_adjusts_record_level_from_form(tmp_path):
     assert page.status_code == 200
     assert "/page/record-adjustment" in html
     assert "调整建议等级" in html
+    assert option_values_after(html, "调整建议等级") == SUBJECTIVE_LEVELS
     assert adjusted.status_code == 302
     with sqlite3.connect(app.config["DATABASE"]) as connection:
         row = connection.execute("select current_subjective_level from evaluation_record where emp_id = 'E001'").fetchone()
@@ -376,7 +434,23 @@ def test_review_pages_render_scoped_records_and_distribution(tmp_path):
     assert "/page/dept-submit" in dept.get_data(as_text=True)
 
 
-def test_objective_page_uses_browser_upload_action(tmp_path):
+def test_dept_review_rating_select_uses_consistent_order(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "M003", "dept_user", ("DEPT_HEAD",))
+    client = app.test_client()
+    seed_cycle_people(client)
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        connection.execute("update evaluation_record set status = 'DEPT_HEAD_PENDING', current_subjective_level = 'B+' where emp_id = 'E001'")
+        connection.commit()
+    login(client, "dept_user")
+
+    page = client.get("/reviews/dept-head/page?cycle_id=1")
+
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert option_values_after(html, "确认等级") == SUBJECTIVE_LEVELS
+
+
     app = make_app(tmp_path)
     seed_user(app, "HR001", "hr_user", ("HRBP",))
     client = app.test_client()

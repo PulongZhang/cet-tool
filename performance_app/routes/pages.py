@@ -29,6 +29,8 @@ ROLE_LABELS = {
     "ADMIN": "管理员",
 }
 
+SUBJECTIVE_LEVELS = ["A+", "A", "B+", "B", "B-", "C", "D"]
+
 STATUS_LABELS = {
     "SELF_PENDING": "待员工自评",
     "SELF_DRAFT": "自评草稿",
@@ -163,6 +165,7 @@ def inject_page_context():
         "current_roles": [ROLE_LABELS.get(role, role) for role in user.get("roles", [])] if user else [],
         "nav_items": nav_items_for(user),
         "status_label": status_label,
+        "subjective_levels": SUBJECTIVE_LEVELS,
     }
 
 

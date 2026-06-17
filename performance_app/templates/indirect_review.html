@@ -45,7 +45,7 @@
             <input type="hidden" name="field_name" value="current_subjective_level">
             <div class="label">员工</div><div><strong>{{ record.emp_name }}</strong> / {{ record.emp_id }} / 当前 {{ record.current_subjective_level or '-' }}</div>
             <div class="label">调整建议等级</div>
-            <select name="after_value"><option>{{ record.current_subjective_level or 'B+' }}</option><option>A+</option><option>A</option><option>B+</option><option>B</option><option>B-</option><option>C</option><option>D</option></select>
+            <select name="after_value">{% for level in subjective_levels %}<option{% if level == (record.current_subjective_level or 'B+') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
             <div class="label">调整原因</div><input name="reason" placeholder="填写调整或确认原因" required>
             <div></div><button class="btn" type="submit">保存{{ record.emp_name }}调整</button>
         </form>
