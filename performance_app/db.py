@@ -7,9 +7,15 @@ from flask import Flask, current_app, g
 from werkzeug.security import generate_password_hash
 
 SCHEMA_VERSION = 1
-DEFAULT_ADMIN_USERNAME = "admin"
-DEFAULT_ADMIN_PASSWORD = "admin123"
-DEFAULT_ADMIN_ROLES = ("ADMIN", "HRBP")
+DEFAULT_ACCOUNT_PASSWORD = "admin123"
+DEFAULT_BUILT_IN_ACCOUNTS = {
+    "employee": ("EMPLOYEE",),
+    "direct": ("DIRECT_MANAGER",),
+    "indirect": ("INDIRECT_MANAGER",),
+    "dept": ("DEPT_HEAD",),
+    "hr": ("HRBP",),
+    "admin": ("ADMIN", "HRBP"),
+}
 
 
 def get_db() -> sqlite3.Connection:
@@ -55,36 +61,33 @@ def init_database(app: Flask) -> None:
             raise RuntimeError(
                 f"Database schema version {row[0]} is newer than application version {SCHEMA_VERSION}"
             )
-        ensure_default_admin(connection)
+        ensure_built_in_accounts(connection)
         connection.commit()
 
 
-def ensure_default_admin(connection: sqlite3.Connection) -> None:
-    row = connection.execute(
-        "select id from user_account where username = ?",
-        (DEFAULT_ADMIN_USERNAME,),
-    ).fetchone()
-    if row is None:
-        cursor = connection.execute(
-            """
-            insert into user_account (emp_id, username, password_hash, status)
-            values (?, ?, ?, 'ACTIVE')
-            """,
-            (
-                DEFAULT_ADMIN_USERNAME,
-                DEFAULT_ADMIN_USERNAME,
-                generate_password_hash(DEFAULT_ADMIN_PASSWORD),
-            ),
-        )
-        user_id = cursor.lastrowid
-    else:
-        user_id = row[0]
+def ensure_built_in_accounts(connection: sqlite3.Connection) -> None:
+    for username, roles in DEFAULT_BUILT_IN_ACCOUNTS.items():
+        row = connection.execute(
+            "select id from user_account where username = ?",
+            (username,),
+        ).fetchone()
+        if row is None:
+            cursor = connection.execute(
+                """
+                insert into user_account (emp_id, username, password_hash, status)
+                values (?, ?, ?, 'ACTIVE')
+                """,
+                (username, username, generate_password_hash(DEFAULT_ACCOUNT_PASSWORD)),
+            )
+            user_id = cursor.lastrowid
+        else:
+            user_id = row[0]
 
-    for role_code in DEFAULT_ADMIN_ROLES:
-        connection.execute(
-            "insert or ignore into user_role (user_id, role_code) values (?, ?)",
-            (user_id, role_code),
-        )
+        for role_code in roles:
+            connection.execute(
+                "insert or ignore into user_role (user_id, role_code) values (?, ?)",
+                (user_id, role_code),
+            )
 
 
 def init_app(app: Flask) -> None:

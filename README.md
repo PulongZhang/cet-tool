@@ -15,15 +15,18 @@ uv run python run.py
 uv run python -m flask --app performance_app run --debug
 ```
 
-启动时应用会读取 `DATABASE` 配置。默认数据库路径为 `data/performance_review.sqlite3`。如果数据库文件不存在，应用会自动创建父目录、SQLite 文件、业务表、索引、角色初始数据、默认管理员账号和 `schema_version` 记录；如果文件已存在，启动过程不会清空已有业务数据。
+启动时应用会读取 `DATABASE` 配置。默认数据库路径为 `data/performance_review.sqlite3`。如果数据库文件不存在，应用会自动创建父目录、SQLite 文件、业务表、索引、角色初始数据、内置角色账号和 `schema_version` 记录；如果文件已存在，启动过程不会清空已有业务数据。
 
-默认管理员账号：
+内置账号默认密码均为 `admin123`：
 
-```text
-用户名：admin
-密码：admin123
-角色：ADMIN + HRBP
-```
+| 用户名 | 角色 |
+|---|---|
+| `employee` | EMPLOYEE |
+| `direct` | DIRECT_MANAGER |
+| `indirect` | INDIRECT_MANAGER |
+| `dept` | DEPT_HEAD |
+| `hr` | HRBP |
+| `admin` | ADMIN + HRBP |
 
 ## 测试
 

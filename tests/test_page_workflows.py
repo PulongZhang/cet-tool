@@ -136,15 +136,15 @@ def test_direct_manager_page_renders_reports_and_draft_form(tmp_path):
 
 def test_review_pages_render_scoped_records_and_distribution(tmp_path):
     app = make_app(tmp_path)
-    seed_user(app, "M002", "indirect", ("INDIRECT_MANAGER",))
-    seed_user(app, "M003", "dept", ("DEPT_HEAD",))
+    seed_user(app, "M002", "indirect_user", ("INDIRECT_MANAGER",))
+    seed_user(app, "M003", "dept_user", ("DEPT_HEAD",))
     client = app.test_client()
     seed_cycle_people(client)
     with sqlite3.connect(app.config["DATABASE"]) as connection:
         connection.execute("update evaluation_record set status = 'INDIRECT_PENDING', current_subjective_level = 'A' where emp_id = 'E001'")
         connection.commit()
 
-    login(client, "indirect")
+    login(client, "indirect_user")
     indirect = client.get("/reviews/indirect/page?cycle_id=1")
     assert indirect.status_code == 200
     assert "李四" in indirect.get_data(as_text=True)
@@ -154,7 +154,7 @@ def test_review_pages_render_scoped_records_and_distribution(tmp_path):
     with sqlite3.connect(app.config["DATABASE"]) as connection:
         connection.execute("update evaluation_record set status = 'DEPT_HEAD_PENDING', current_subjective_level = 'A' where emp_id = 'E001'")
         connection.commit()
-    login(client, "dept")
+    login(client, "dept_user")
     dept = client.get("/reviews/dept-head/page?cycle_id=1")
     assert dept.status_code == 200
     assert "李四" in dept.get_data(as_text=True)
@@ -163,10 +163,10 @@ def test_review_pages_render_scoped_records_and_distribution(tmp_path):
 
 def test_objective_page_uses_browser_upload_action(tmp_path):
     app = make_app(tmp_path)
-    seed_user(app, "HR001", "hr", ("HRBP",))
+    seed_user(app, "HR001", "hr_user", ("HRBP",))
     client = app.test_client()
     seed_cycle_people(client)
-    login(client, "hr")
+    login(client, "hr_user")
 
     page = client.get("/objective/import/page?cycle_id=1")
     assert page.status_code == 200
@@ -179,10 +179,10 @@ def test_objective_page_uses_browser_upload_action(tmp_path):
 
 def test_objective_upload_without_file_redirects_without_error(tmp_path):
     app = make_app(tmp_path)
-    seed_user(app, "HR001", "hr", ("HRBP",))
+    seed_user(app, "HR001", "hr_user", ("HRBP",))
     client = app.test_client()
     seed_cycle_people(client)
-    login(client, "hr")
+    login(client, "hr_user")
 
     response = client.post("/page/objective-upload", data={"cycle_id": "1"}, follow_redirects=False)
 
@@ -192,10 +192,10 @@ def test_objective_upload_without_file_redirects_without_error(tmp_path):
 
 def test_hr_results_page_renders_calculated_records(tmp_path):
     app = make_app(tmp_path)
-    seed_user(app, "HR001", "hr", ("HRBP",))
+    seed_user(app, "HR001", "hr_user", ("HRBP",))
     client = app.test_client()
     seed_cycle_people(client)
-    login(client, "hr")
+    login(client, "hr_user")
     with sqlite3.connect(app.config["DATABASE"]) as connection:
         connection.execute(
             """

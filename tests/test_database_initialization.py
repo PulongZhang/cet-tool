@@ -45,20 +45,24 @@ def test_create_app_creates_sqlite_file_and_schema(tmp_path):
             row[0]
             for row in connection.execute("select role_code from role_catalog").fetchall()
         }
-        admin_row = connection.execute(
-            "select id, emp_id, username, password_hash, status from user_account where username = 'admin'"
-        ).fetchone()
-        admin_roles = {
-            row[0]
-            for row in connection.execute(
-                """
-                select role_code
-                from user_role
-                where user_id = ?
-                """,
-                (admin_row[0],),
-            ).fetchall()
-        }
+        built_in_accounts = {}
+        for username in ("employee", "direct", "indirect", "dept", "hr", "admin"):
+            account = connection.execute(
+                "select id, emp_id, username, password_hash, status from user_account where username = ?",
+                (username,),
+            ).fetchone()
+            account_roles = {
+                row[0]
+                for row in connection.execute(
+                    """
+                    select role_code
+                    from user_role
+                    where user_id = ?
+                    """,
+                    (account[0],),
+                ).fetchall()
+            }
+            built_in_accounts[username] = (account, account_roles)
 
     assert version == 1
     assert roles == {
@@ -69,11 +73,21 @@ def test_create_app_creates_sqlite_file_and_schema(tmp_path):
         "HRBP",
         "ADMIN",
     }
-    assert admin_row[1] == "admin"
-    assert admin_row[2] == "admin"
-    assert check_password_hash(admin_row[3], "admin123")
-    assert admin_row[4] == "ACTIVE"
-    assert admin_roles == {"ADMIN", "HRBP"}
+    expected_accounts = {
+        "employee": {"EMPLOYEE"},
+        "direct": {"DIRECT_MANAGER"},
+        "indirect": {"INDIRECT_MANAGER"},
+        "dept": {"DEPT_HEAD"},
+        "hr": {"HRBP"},
+        "admin": {"ADMIN", "HRBP"},
+    }
+    for username, expected_roles in expected_accounts.items():
+        account, account_roles = built_in_accounts[username]
+        assert account[1] == username
+        assert account[2] == username
+        assert check_password_hash(account[3], "admin123")
+        assert account[4] == "ACTIVE"
+        assert account_roles == expected_roles
 
 
 def test_create_app_does_not_destroy_existing_database(tmp_path):

@@ -83,13 +83,21 @@ def test_logout_returns_ok_for_stateless_session(tmp_path):
     assert response.get_json() == {"status": "ok"}
 
 
-def test_default_admin_can_login(tmp_path):
+def test_default_role_accounts_can_login(tmp_path):
     app = make_app(tmp_path)
     client = app.test_client()
 
-    response = client.post("/auth/login", json={"username": "admin", "password": "admin123"})
-
-    assert response.status_code == 200
-    assert response.get_json()["user"]["emp_id"] == "admin"
-    assert response.get_json()["user"]["username"] == "admin"
-    assert response.get_json()["user"]["roles"] == ["ADMIN", "HRBP"]
+    expected_roles = {
+        "employee": ["EMPLOYEE"],
+        "direct": ["DIRECT_MANAGER"],
+        "indirect": ["INDIRECT_MANAGER"],
+        "dept": ["DEPT_HEAD"],
+        "hr": ["HRBP"],
+        "admin": ["ADMIN", "HRBP"],
+    }
+    for username, roles in expected_roles.items():
+        response = client.post("/auth/login", json={"username": username, "password": "admin123"})
+        assert response.status_code == 200
+        assert response.get_json()["user"]["emp_id"] == username
+        assert response.get_json()["user"]["username"] == username
+        assert response.get_json()["user"]["roles"] == roles
