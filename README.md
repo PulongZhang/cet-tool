@@ -57,7 +57,7 @@ uv run python -m pytest -q
 - HR 计算 API，按 `final_subjective_grade_1/2/3`、客观等级和分组权重计算加权分，支持同分同排名，计算后进入 `INITIAL_CALCULATED`。
 - 结果总览、个人计算明细、最终确认和 HR 最终等级微调 API；最终微调只改 `final_level`，不重新计算加权分。
 - 初评/最终结果 Excel 导出和下载 API，V1 当前导出 `结果总览` Sheet。
-- 功能型 Flask 前端页面：浏览器登录/退出、session 登录态、按角色显示菜单、后端页面权限拦截、首页仪表盘、自评、直接上级评分、间接审阅、部门确认、客观数据导入、结果计算/最终确认/导出。
+- 功能型 Flask 前端页面：浏览器登录/退出、session 登录态、按角色显示菜单、后端页面权限拦截、首页仪表盘、周期管理、自评、直接上级评分、间接审阅、部门确认、客观数据导入、结果计算/最终确认/导出。
 - 页面参考 `docs/prototypes/performance-review-tool-prototype.html` 的左侧导航、顶部用户卡、流程卡片、比例分布和表格布局；页面数据来自 SQLite 和已有服务，不再只是静态原型。
 
 `docs/superpowers/specs/V2.md` 记录已确认澄清点；后续实现和验收以该文件中的已确认口径为准。

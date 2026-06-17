@@ -3,6 +3,8 @@ from __future__ import annotations
 from flask import Blueprint, redirect, request
 
 from performance_app.db import get_db
+from performance_app.repositories.audit import write_audit_log
+from performance_app.repositories.cycles import create_cycle, delete_preparing_cycle, has_active_cycle, update_cycle_status
 from performance_app.repositories.records import (
     bulk_update_status,
     list_direct_reports,
@@ -41,6 +43,83 @@ def form_cycle_id() -> int | None:
         return int(raw_cycle_id)
     except ValueError:
         return None
+
+
+def current_operator() -> tuple[str, str]:
+    user = current_page_user()
+    return user["emp_id"], user["username"]
+
+
+def write_cycle_audit(action: str, cycle: dict, operator_id: str, operator_name: str, before_snapshot: dict | None = None) -> None:
+    write_audit_log(
+        action=action,
+        target_type="evaluation_cycle",
+        target_id=cycle["id"],
+        operator_id=operator_id,
+        operator_name=operator_name,
+        cycle_id=cycle["id"],
+        before_snapshot=before_snapshot,
+        after_snapshot=None if before_snapshot else cycle,
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get("User-Agent"),
+    )
+
+
+@bp.post("/page/cycles/create")
+@role_required("HRBP", "ADMIN")
+def page_cycle_create():
+    cycle_name = request.form.get("cycle_name")
+    start_date = request.form.get("start_date")
+    end_date = request.form.get("end_date")
+    if cycle_name and start_date and end_date:
+        operator_id, operator_name = current_operator()
+        try:
+            cycle = create_cycle(cycle_name, start_date, end_date, operator_id)
+        except ValueError:
+            cycle = None
+        if cycle is not None:
+            write_cycle_audit("CREATE_CYCLE", cycle, operator_id, operator_name)
+            get_db().commit()
+    return redirect("/cycles/page")
+
+
+@bp.post("/page/cycles/start")
+@role_required("HRBP", "ADMIN")
+def page_cycle_start():
+    cycle_id = form_cycle_id()
+    if cycle_id is not None and not has_active_cycle(excluding_cycle_id=cycle_id):
+        cycle = update_cycle_status(cycle_id, "PREPARING", "ACTIVE")
+        if cycle is not None:
+            operator_id, operator_name = current_operator()
+            write_cycle_audit("START_CYCLE", cycle, operator_id, operator_name)
+            get_db().commit()
+    return redirect("/cycles/page")
+
+
+@bp.post("/page/cycles/close")
+@role_required("HRBP", "ADMIN")
+def page_cycle_close():
+    cycle_id = form_cycle_id()
+    if cycle_id is not None:
+        cycle = update_cycle_status(cycle_id, "ACTIVE", "CLOSED")
+        if cycle is not None:
+            operator_id, operator_name = current_operator()
+            write_cycle_audit("CLOSE_CYCLE", cycle, operator_id, operator_name)
+            get_db().commit()
+    return redirect("/cycles/page")
+
+
+@bp.post("/page/cycles/delete")
+@role_required("HRBP", "ADMIN")
+def page_cycle_delete():
+    cycle_id = form_cycle_id()
+    if cycle_id is not None:
+        cycle = delete_preparing_cycle(cycle_id)
+        if cycle is not None:
+            operator_id, operator_name = current_operator()
+            write_cycle_audit("DELETE_CYCLE", cycle, operator_id, operator_name, before_snapshot=cycle)
+            get_db().commit()
+    return redirect("/cycles/page")
 
 
 @bp.post("/page/self-draft")

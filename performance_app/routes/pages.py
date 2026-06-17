@@ -29,6 +29,7 @@ ROLE_LABELS = {
 
 NAV_ITEMS = [
     {"title": "首页仪表盘", "href": "/", "roles": None},
+    {"title": "周期管理", "href": "/cycles/page", "roles": {"HRBP", "ADMIN"}},
     {"title": "我的自评", "href": "/self-review", "roles": {"EMPLOYEE"}},
     {"title": "直接上级评分", "href": "/direct-reports", "roles": {"DIRECT_MANAGER"}},
     {"title": "间接上级审阅", "href": "/reviews/indirect/page", "roles": {"INDIRECT_MANAGER"}},
@@ -147,6 +148,12 @@ def login_submit():
 def logout_page():
     session.clear()
     return redirect(url_for("pages.login_page"))
+
+
+@bp.get("/cycles/page")
+@role_required("HRBP", "ADMIN")
+def cycle_management_page():
+    return render_template("cycle_management.html", cycles=available_cycles())
 
 
 @bp.get("/self-review")

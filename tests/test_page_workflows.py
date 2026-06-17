@@ -86,6 +86,70 @@ def record_id(app, emp_id):
         return connection.execute("select id from evaluation_record where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
+def test_cycle_management_page_renders_for_hr_and_hides_cycle_id_label(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "HR001", "hr_user", ("HRBP",))
+    client = app.test_client()
+    client.post("/cycles", json={"cycle_name": "2026-Q2", "start_date": "2026-04-01", "end_date": "2026-06-30"})
+    client.post("/cycles/1/start")
+    client.post("/cycles", json={"cycle_name": "2026-Q3", "start_date": "2026-07-01", "end_date": "2026-09-30"})
+    login(client, "hr_user")
+
+    page = client.get("/cycles/page")
+
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "周期管理" in html
+    assert "2026-Q2" in html
+    assert "周期 ID" not in html
+    assert "/page/cycles/create" in html
+    assert "/page/cycles/start" in html
+    assert "/page/cycles/close" in html
+    assert "/page/cycles/delete" in html
+
+
+def test_cycle_management_page_rejects_employee_role(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "E001", "lisi", ("EMPLOYEE",))
+    client = app.test_client()
+    login(client, "lisi")
+
+    page = client.get("/cycles/page")
+
+    assert page.status_code == 403
+
+
+def test_cycle_management_page_actions_manage_cycle_statuses(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "HR001", "hr_user", ("HRBP",))
+    client = app.test_client()
+    login(client, "hr_user")
+
+    created = client.post(
+        "/page/cycles/create",
+        data={"cycle_name": "2026-Q2", "start_date": "2026-04-01", "end_date": "2026-06-30"},
+        follow_redirects=False,
+    )
+    started = client.post("/page/cycles/start", data={"cycle_id": "1"}, follow_redirects=False)
+    closed = client.post("/page/cycles/close", data={"cycle_id": "1"}, follow_redirects=False)
+    client.post(
+        "/page/cycles/create",
+        data={"cycle_name": "2026-Q3", "start_date": "2026-07-01", "end_date": "2026-09-30"},
+        follow_redirects=False,
+    )
+    deleted = client.post("/page/cycles/delete", data={"cycle_id": "2"}, follow_redirects=False)
+
+    assert created.status_code == 302
+    assert started.status_code == 302
+    assert closed.status_code == 302
+    assert deleted.status_code == 302
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        cycles = connection.execute("select cycle_name, status from evaluation_cycle order by id").fetchall()
+        actions = connection.execute("select action from audit_log order by id").fetchall()
+    assert cycles == [("2026-Q2", "CLOSED")]
+    assert actions == [("CREATE_CYCLE",), ("START_CYCLE",), ("CLOSE_CYCLE",), ("CREATE_CYCLE",), ("DELETE_CYCLE",)]
+
+
 def test_self_review_page_renders_record_and_submit_form_updates_status(tmp_path):
     app = make_app(tmp_path)
     seed_user(app, "E001", "lisi", ("EMPLOYEE",))

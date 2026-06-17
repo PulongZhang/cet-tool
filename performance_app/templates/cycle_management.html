@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}周期管理 - 绩效考核评分工具{% endblock %}
+{% block page_title %}周期管理{% endblock %}
+{% block page_subtitle %}维护考核周期，控制周期准备、启用、关闭和删除。{% endblock %}
+{% block status_bar %}
+<div class="demo-status" role="region" aria-label="周期状态">
+    <div class="status-item">周期总数<strong>{{ cycles | length }}</strong></div>
+    <div class="status-item">准备中<strong>{{ cycles | selectattr('status', 'equalto', 'PREPARING') | list | length }}</strong></div>
+    <div class="status-item">进行中<strong>{{ cycles | selectattr('status', 'equalto', 'ACTIVE') | list | length }}</strong></div>
+    <div class="status-item">已关闭<strong>{{ cycles | selectattr('status', 'equalto', 'CLOSED') | list | length }}</strong></div>
+    <div class="status-item">可操作角色<strong>ADMIN / HRBP</strong></div>
+</div>
+{% endblock %}
+{% block content %}
+<section class="card">
+    <h2>创建新周期</h2>
+    <form method="post" action="/page/cycles/create" class="form-grid">
+        <div class="label">周期名称</div>
+        <input name="cycle_name" placeholder="例如：2026-Q3" required>
+        <div class="label">开始日期</div>
+        <input name="start_date" type="date" required>
+        <div class="label">结束日期</div>
+        <input name="end_date" type="date" required>
+        <div></div>
+        <button type="submit" class="btn primary">创建周期</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>周期列表</h2>
+    {% if cycles %}
+    <table>
+        <thead>
+            <tr>
+                <th>周期名称</th>
+                <th>开始日期</th>
+                <th>结束日期</th>
+                <th>状态</th>
+                <th>创建人</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cycle in cycles %}
+            <tr>
+                <td><strong>{{ cycle.cycle_name }}</strong></td>
+                <td>{{ cycle.start_date }}</td>
+                <td>{{ cycle.end_date }}</td>
+                <td>
+                    {% if cycle.status == 'ACTIVE' %}
+                    <span class="tag green">进行中</span>
+                    {% elif cycle.status == 'PREPARING' %}
+                    <span class="tag orange">准备中</span>
+                    {% elif cycle.status == 'CLOSED' %}
+                    <span class="tag gray">已关闭</span>
+                    {% else %}
+                    <span class="tag">{{ cycle.status }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ cycle.created_by }}</td>
+                <td>
+                    <div class="btnrow">
+                        {% if cycle.status == 'PREPARING' %}
+                        <form method="post" action="/page/cycles/start">
+                            <input type="hidden" name="cycle_id" value="{{ cycle.id }}">
+                            <button type="submit" class="btn green">启动</button>
+                        </form>
+                        <form method="post" action="/page/cycles/delete">
+                            <input type="hidden" name="cycle_id" value="{{ cycle.id }}">
+                            <button type="submit" class="btn red">删除</button>
+                        </form>
+                        {% elif cycle.status == 'ACTIVE' %}
+                        <form method="post" action="/page/cycles/close">
+                            <input type="hidden" name="cycle_id" value="{{ cycle.id }}">
+                            <button type="submit" class="btn red">关闭</button>
+                        </form>
+                        {% else %}
+                        <span class="muted">无可用操作</span>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">暂无周期。请先创建一个周期。</p>
+    {% endif %}
+</section>
+{% endblock %}
