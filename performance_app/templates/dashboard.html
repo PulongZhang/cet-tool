@@ -1,13 +1,42 @@
 {% extends "base.html" %}
 {% block title %}首页仪表盘 - 绩效考核评分工具{% endblock %}
+{% block page_title %}首页仪表盘{% endblock %}
+{% block page_subtitle %}按当前登录账号角色显示可处理页面和待办入口。{% endblock %}
+{% block status_bar %}
+<div class="demo-status" role="region" aria-label="当前状态">
+    <div class="status-item">当前用户<strong>{{ current_user.username }}</strong></div>
+    <div class="status-item">当前角色<strong>{{ current_roles | join(' / ') }}</strong></div>
+    <div class="status-item">可访问页面<strong>{{ nav_items | length }}</strong></div>
+    <div class="status-item">登录状态<strong>已登录</strong></div>
+    <div class="status-item">操作模式<strong>真实后端</strong></div>
+</div>
+{% endblock %}
 {% block content %}
-<h1>首页仪表盘</h1>
-<section class="grid">
-    <a class="card" href="/self-review"><h2>我的自评</h2><p>填写工作总结和三个自评维度。</p></a>
-    <a class="card" href="/direct-reports"><h2>直接上级评分</h2><p>查看下属并完成评分草稿/批量提交。</p></a>
-    <a class="card" href="/reviews/indirect/page"><h2>间接上级审阅</h2><p>查看比例分布，调整并提交团队结果。</p></a>
-    <a class="card" href="/reviews/dept-head/page"><h2>部门负责人确认</h2><p>确认部门范围记录。</p></a>
-    <a class="card" href="/objective/import/page"><h2>客观数据导入</h2><p>下载模板、上传 objective.xlsx。</p></a>
-    <a class="card" href="/results"><h2>结果导出</h2><p>执行计算、最终确认并导出 Excel。</p></a>
+<section class="card">
+    <h2>流程进度</h2>
+    <div class="flow">
+        <div class="step done">准备工作<br><span class="muted">周期/人员</span></div>
+        <span class="arrow">→</span>
+        <div class="step active">员工自评<br><span class="muted">按角色处理</span></div>
+        <span class="arrow">→</span>
+        <div class="step">直接上级评分</div>
+        <span class="arrow">→</span>
+        <div class="step">间接上级审阅</div>
+        <span class="arrow">→</span>
+        <div class="step">部门负责人确认</div>
+        <span class="arrow">→</span>
+        <div class="step">HR 计算导出</div>
+    </div>
+</section>
+
+<section class="grid cols-3">
+    {% for item in nav_items %}
+        {% if item.href != '/' %}
+        <a class="card" href="{{ item.href }}">
+            <h2>{{ item.title }}</h2>
+            <p class="muted">进入 {{ item.title }} 页面，页面访问由后端角色权限控制。</p>
+        </a>
+        {% endif %}
+    {% endfor %}
 </section>
 {% endblock %}

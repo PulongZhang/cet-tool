@@ -1,12 +1,18 @@
 {% extends "base.html" %}
 {% block title %}登录 - 绩效考核评分工具{% endblock %}
-{% block content %}
-<section class="card narrow">
-    <h1>绩效考核评分工具</h1>
-    <form method="post" action="/auth/login" data-api="/auth/login">
+{% block public_content %}
+<section class="login-card">
+    <div class="brand login-brand">
+        季度绩效考核评分工具
+        <small>请登录后进入对应角色页面</small>
+    </div>
+    {% if error %}<div class="dangerbox">{{ error }}</div>{% endif %}
+    <form method="post" action="/login">
+        <input type="hidden" name="next" value="{{ next_url }}">
         <label>用户名 <input name="username" autocomplete="username"></label>
         <label>密码 <input name="password" type="password" autocomplete="current-password"></label>
-        <button type="submit">登录</button>
+        <button type="submit" class="btn primary full">登录</button>
     </form>
+    <p class="muted">账号来自人员导入或后台初始化。页面权限会根据账号角色自动控制。</p>
 </section>
 {% endblock %}

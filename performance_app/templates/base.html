@@ -7,19 +7,44 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
 <body>
-    <header class="topbar">
-        <a href="/" class="brand">绩效考核评分工具</a>
-        <nav>
-            <a href="/self-review">我的自评</a>
-            <a href="/direct-reports">直接上级评分</a>
-            <a href="/reviews/indirect/page">间接审阅</a>
-            <a href="/reviews/dept-head/page">部门确认</a>
-            <a href="/objective/import/page">客观数据</a>
-            <a href="/results">结果导出</a>
-        </nav>
-    </header>
-    <main class="container">
-        {% block content %}{% endblock %}
+    {% if current_user and request.endpoint != 'pages.login_page' %}
+    <div class="shell">
+        <aside class="sidebar">
+            <div class="brand">
+                季度绩效考核评分工具
+                <small>Flask V1 · PC 端优先</small>
+            </div>
+            <nav class="nav" aria-label="主导航">
+                {% for item in nav_items %}
+                <a href="{{ item.href }}" class="{% if request.path == item.href %}active{% endif %}">{{ item.title }}</a>
+                {% endfor %}
+            </nav>
+            <form method="post" action="/logout" class="logout-form">
+                <button type="submit" class="btn ghost">退出登录</button>
+            </form>
+        </aside>
+        <main class="main">
+            <div class="topbar">
+                <div class="title">
+                    <h1>{% block page_title %}首页仪表盘{% endblock %}</h1>
+                    <p>{% block page_subtitle %}真实页面：登录态、角色权限、数据和操作均由后端控制。{% endblock %}</p>
+                </div>
+                <div class="userbox">
+                    <div><strong>当前用户：{{ current_user.username }}</strong></div>
+                    <div class="muted">工号：{{ current_user.emp_id }}</div>
+                    <div class="tagrow">
+                        {% for role in current_roles %}<span class="tag">{{ role }}</span>{% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% block status_bar %}{% endblock %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% else %}
+    <main class="login-main">
+        {% block public_content %}{% block content_public %}{% endblock %}{% endblock %}
     </main>
+    {% endif %}
 </body>
 </html>

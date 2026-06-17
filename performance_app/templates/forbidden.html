@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}无权限 - 绩效考核评分工具{% endblock %}
+{% block page_title %}无权限{% endblock %}
+{% block page_subtitle %}页面访问由后端角色权限控制。{% endblock %}
+{% block content %}
+<section class="card">
+    <h2>没有权限访问该页面</h2>
+    <p class="muted">需要角色：{{ required_roles | join(' / ') }}</p>
+    <a class="btn" href="/">返回首页</a>
+</section>
+{% endblock %}
