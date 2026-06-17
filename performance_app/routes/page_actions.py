@@ -10,6 +10,7 @@ from performance_app.repositories.records import (
     list_direct_reports,
     list_scope_records,
     submit_direct_report_drafts,
+    get_record,
     update_manager_score,
     update_self_review,
 )
@@ -127,8 +128,10 @@ def page_cycle_delete():
 def page_self_draft():
     record_id = int(request.form["record_id"])
     cycle_id = request.form.get("cycle_id")
-    update_self_review(record_id, form_payload("self_summary", "self_score_1", "self_score_2", "self_score_3"), "SELF_DRAFT")
-    get_db().commit()
+    record = get_record(record_id)
+    if record is not None and record["status"] in {"SELF_PENDING", "SELF_DRAFT"}:
+        update_self_review(record_id, form_payload("self_summary", "self_score_1", "self_score_2", "self_score_3"), "SELF_DRAFT")
+        get_db().commit()
     return redirect_with_cycle("/self-review", cycle_id)
 
 
@@ -137,8 +140,10 @@ def page_self_draft():
 def page_self_submit():
     record_id = int(request.form["record_id"])
     cycle_id = request.form.get("cycle_id")
-    update_self_review(record_id, form_payload("self_summary", "self_score_1", "self_score_2", "self_score_3"), "DIRECT_PENDING")
-    get_db().commit()
+    record = get_record(record_id)
+    if record is not None and record["status"] in {"SELF_PENDING", "SELF_DRAFT"}:
+        update_self_review(record_id, form_payload("self_summary", "self_score_1", "self_score_2", "self_score_3"), "DIRECT_PENDING")
+        get_db().commit()
     return redirect_with_cycle("/self-review", cycle_id)
 
 

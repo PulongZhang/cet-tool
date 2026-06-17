@@ -16,6 +16,7 @@ from performance_app.repositories.records import (
 bp = Blueprint("records", __name__)
 
 COMMENT_REQUIRED_GRADES = {"A+", "A", "C", "D"}
+SELF_EDITABLE_STATUSES = {"SELF_PENDING", "SELF_DRAFT"}
 
 
 def current_user_or_response():
@@ -62,6 +63,8 @@ def self_draft(record_id: int):
         return jsonify({"error": "record not found"}), 404
     if record["emp_id"] != user["emp_id"]:
         return jsonify({"error": "forbidden"}), 403
+    if record["status"] not in SELF_EDITABLE_STATUSES:
+        return jsonify({"error": "self review is locked"}), 409
     payload = request.get_json(silent=True) or {}
     field_error = require_fields(payload, ["self_score_1", "self_score_2", "self_score_3"])
     if field_error:
@@ -81,6 +84,8 @@ def self_submit(record_id: int):
         return jsonify({"error": "record not found"}), 404
     if record["emp_id"] != user["emp_id"]:
         return jsonify({"error": "forbidden"}), 403
+    if record["status"] not in SELF_EDITABLE_STATUSES:
+        return jsonify({"error": "self review is locked"}), 409
     payload = request.get_json(silent=True) or {}
     field_error = require_fields(payload, ["self_score_1", "self_score_2", "self_score_3"])
     if field_error:

@@ -115,6 +115,34 @@ def test_employee_self_review_flow(tmp_path):
     assert submitted.get_json()["record"]["status"] == "DIRECT_PENDING"
 
 
+def test_employee_self_review_api_locks_after_submit(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+    seed_cycle_people(client)
+    employee_user_id = user_id(app, "E001")
+    employee_record_id = record_id(app, "E001")
+
+    client.post(
+        f"/records/{employee_record_id}/self-submit",
+        json={"self_summary": "首次提交", "self_score_1": "A", "self_score_2": "B+", "self_score_3": "A"},
+        headers={"X-User-Id": str(employee_user_id)},
+    )
+    draft_again = client.post(
+        f"/records/{employee_record_id}/self-draft",
+        json={"self_summary": "绕过 API 修改", "self_score_1": "C", "self_score_2": "C", "self_score_3": "C"},
+        headers={"X-User-Id": str(employee_user_id)},
+    )
+
+    assert draft_again.status_code == 409
+    assert draft_again.get_json() == {"error": "self review is locked"}
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        row = connection.execute(
+            "select self_summary, self_score_1, self_score_2, self_score_3, status from evaluation_record where id = ?",
+            (employee_record_id,),
+        ).fetchone()
+    assert row == ("首次提交", "A", "B+", "A", "DIRECT_PENDING")
+
+
 def test_direct_manager_scoring_flow_and_comment_rule(tmp_path):
     app = make_app(tmp_path)
     client = app.test_client()

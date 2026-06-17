@@ -13,6 +13,7 @@
         <div class="status-item">职级<strong>{{ record.level }}</strong></div>
         <div class="status-item">当前状态<strong>{{ record.status }}</strong></div>
     </div>
+    {% if record.status in ['SELF_PENDING', 'SELF_DRAFT'] %}
     <form method="post" action="/page/self-draft" class="form-grid">
         <input type="hidden" name="record_id" value="{{ record.id }}">
         <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
@@ -26,7 +27,16 @@
             <button class="btn primary" type="submit" formaction="/page/self-submit">提交自评</button>
         </div>
     </form>
-    <p class="prototype-note">API 参考：<code>/records/my</code>，页面动作：<code>/page/self-submit</code>。</p>
+    {% else %}
+    <div class="hint">自评已提交，等待直接上级评分。</div>
+    <div class="form-grid">
+        <div class="label">工作总结</div><div>{{ record.self_summary or '-' }}</div>
+        <div class="label">产出和质量</div><div>{{ record.self_score_1 or '-' }}</div>
+        <div class="label">主动承担</div><div>{{ record.self_score_2 or '-' }}</div>
+        <div class="label">易用性和可维护</div><div>{{ record.self_score_3 or '-' }}</div>
+    </div>
+    {% endif %}
+    <p class="prototype-note">API 参考：<code>/records/my</code>，页面动作会根据当前状态开放。</p>
     {% else %}
     <div class="hint">当前周期下没有找到你的考核记录，请联系 HR 导入人员名单。</div>
     {% endif %}

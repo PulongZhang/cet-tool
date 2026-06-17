@@ -183,6 +183,77 @@ def test_self_review_page_renders_record_and_submit_form_updates_status(tmp_path
     assert status == "DIRECT_PENDING"
 
 
+def test_self_review_page_locks_after_submit(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "E001", "lisi", ("EMPLOYEE",))
+    client = app.test_client()
+    seed_cycle_people(client)
+    login(client, "lisi")
+
+    client.post(
+        "/page/self-submit",
+        data={
+            "record_id": str(record_id(app, "E001")),
+            "cycle_id": "1",
+            "self_summary": "完成核心工作",
+            "self_score_1": "A",
+            "self_score_2": "B+",
+            "self_score_3": "A",
+        },
+        follow_redirects=False,
+    )
+
+    page = client.get("/self-review?cycle_id=1")
+
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "自评已提交，等待直接上级评分" in html
+    assert "/page/self-submit" not in html
+    assert "保存草稿" not in html
+
+
+def test_self_review_page_actions_ignore_locked_record(tmp_path):
+    app = make_app(tmp_path)
+    seed_user(app, "E001", "lisi", ("EMPLOYEE",))
+    client = app.test_client()
+    seed_cycle_people(client)
+    login(client, "lisi")
+    locked_record_id = str(record_id(app, "E001"))
+
+    client.post(
+        "/page/self-submit",
+        data={
+            "record_id": locked_record_id,
+            "cycle_id": "1",
+            "self_summary": "首次提交",
+            "self_score_1": "A",
+            "self_score_2": "B+",
+            "self_score_3": "A",
+        },
+        follow_redirects=False,
+    )
+    client.post(
+        "/page/self-draft",
+        data={
+            "record_id": locked_record_id,
+            "cycle_id": "1",
+            "self_summary": "绕过页面修改",
+            "self_score_1": "C",
+            "self_score_2": "C",
+            "self_score_3": "C",
+        },
+        follow_redirects=False,
+    )
+
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        row = connection.execute(
+            "select self_summary, self_score_1, self_score_2, self_score_3, status from evaluation_record where id = ?",
+            (locked_record_id,),
+        ).fetchone()
+
+    assert row == ("首次提交", "A", "B+", "A", "DIRECT_PENDING")
+
+
 def test_direct_manager_page_renders_reports_and_draft_form(tmp_path):
     app = make_app(tmp_path)
     seed_user(app, "M001", "manager", ("DIRECT_MANAGER",))
