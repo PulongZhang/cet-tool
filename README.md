@@ -30,6 +30,16 @@ uv run python -m flask --app performance_app run --debug
 
 默认启动会在空库中创建 `2026-Q2 演示周期`，并内置一条可串完整流程的上下级关系：`employee` 的直接上级是 `direct`，间接上级是 `indirect`，部门负责人是 `dept`；`hr` 和 `admin` 可进入 HR/管理页面导入客观数据、计算和确认结果。若库中已存在周期，则不会额外追加演示周期。
 
+## 运维脚本
+
+如需把当前进行中周期恢复到员工可重新填写自评的初始状态，可执行：
+
+```bash
+uv run python reset_current_cycle_reviews.py
+```
+
+该脚本会先备份 `data/performance_review.sqlite3`，再删除当前 `ACTIVE` 周期下的旧 `evaluation_record` 和关联的 `grade_adjustment_log`，最后按当前周期人员快照重新生成 `SELF_PENDING` 初始评审记录；不会删除周期、人员快照、账号或客观数据。兼容入口 `delete_current_cycle_reviews.py` 也会执行同样的重置逻辑。
+
 ## 测试
 
 ```bash
