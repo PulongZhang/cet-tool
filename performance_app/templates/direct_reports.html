@@ -45,10 +45,10 @@
         <form method="post" action="/page/manager-draft" class="form-grid">
             <input type="hidden" name="record_id" value="{{ first.id }}">
             <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
-            <div class="label">产出和质量</div><select name="manager_score_1"><option>A</option><option>B+</option><option>B</option><option>C</option></select>
-            <div class="label">主动承担</div><select name="manager_score_2"><option>A</option><option>B+</option><option>B</option><option>C</option></select>
-            <div class="label">易用性和可维护</div><select name="manager_score_3"><option>B+</option><option>A</option><option>B</option><option>C</option></select>
-            <div class="label">初始总分评分</div><select name="initial_total_grade"><option>A</option><option>B+</option><option>B</option><option>C</option></select>
+            <div class="label">产出和质量</div><select name="manager_score_1"><option>A</option><option>A+</option><option>B+</option><option>B</option><option>B-</option><option>C</option><option>D</option></select>
+            <div class="label">主动承担</div><select name="manager_score_2"><option>A</option><option>A+</option><option>B+</option><option>B</option><option>B-</option><option>C</option><option>D</option></select>
+            <div class="label">易用性和可维护</div><select name="manager_score_3"><option>B+</option><option>A+</option><option>A</option><option>B</option><option>B-</option><option>C</option><option>D</option></select>
+            <div class="label">初始总分评分</div><select name="initial_total_grade"><option>A</option><option>A+</option><option>B+</option><option>B</option><option>B-</option><option>C</option><option>D</option></select>
             <div class="label">整体评语</div><textarea name="manager_comment" placeholder="A/A+/C/D 必填">表现优秀</textarea>
             <div></div><div class="btnrow"><button class="btn" type="submit">保存草稿</button></div>
         </form>
