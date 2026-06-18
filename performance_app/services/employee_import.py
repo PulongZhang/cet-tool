@@ -16,10 +16,17 @@ REQUIRED_FIELDS = [
     "emp_name",
     "sequence",
     "level",
-    "dept_name",
     "direct_manager_id",
     "indirect_manager_id",
     "dept_head_id",
+]
+
+OPTIONAL_FIELDS = [
+    "dept_level_1",
+    "dept_level_2",
+    "dept_level_3",
+    "dept_level_4",
+    "post",
 ]
 DEFAULT_PASSWORD = "ChangeMe123!"
 
@@ -44,6 +51,9 @@ def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[di
         }
 
     normalized = {field: str(row[field]).strip() for field in REQUIRED_FIELDS}
+    for field in OPTIONAL_FIELDS:
+        normalized[field] = (row.get(field) or "").strip()
+
     try:
         group_code = derive_group_code(normalized["sequence"], normalized["level"])
     except ValueError as exc:
@@ -53,6 +63,9 @@ def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[di
             "field_name": "level",
             "error_message": str(exc),
         }
+
+    # 组合部门名称：使用一级部门作为主要部门名称
+    normalized["dept_name"] = normalized["dept_level_1"] or normalized.get("dept_level_2") or normalized.get("dept_level_3") or "未知部门"
 
     seen_emp_ids.add(emp_id)
     normalized["group_code"] = group_code

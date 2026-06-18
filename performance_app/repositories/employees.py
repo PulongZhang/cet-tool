@@ -8,15 +8,21 @@ def upsert_snapshot(cycle_id: int, row: dict, group_code: str) -> None:
         """
         insert into cycle_employee_snapshot
             (cycle_id, emp_id, emp_name, sequence, level, group_code, dept_name,
+             dept_level_1, dept_level_2, dept_level_3, dept_level_4, post,
              direct_manager_id, indirect_manager_id, dept_head_id, active)
         values
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         on conflict(cycle_id, emp_id) do update set
             emp_name = excluded.emp_name,
             sequence = excluded.sequence,
             level = excluded.level,
             group_code = excluded.group_code,
             dept_name = excluded.dept_name,
+            dept_level_1 = excluded.dept_level_1,
+            dept_level_2 = excluded.dept_level_2,
+            dept_level_3 = excluded.dept_level_3,
+            dept_level_4 = excluded.dept_level_4,
+            post = excluded.post,
             direct_manager_id = excluded.direct_manager_id,
             indirect_manager_id = excluded.indirect_manager_id,
             dept_head_id = excluded.dept_head_id,
@@ -30,6 +36,11 @@ def upsert_snapshot(cycle_id: int, row: dict, group_code: str) -> None:
             row["level"],
             group_code,
             row["dept_name"],
+            row.get("dept_level_1") or None,
+            row.get("dept_level_2") or None,
+            row.get("dept_level_3") or None,
+            row.get("dept_level_4") or None,
+            row.get("post") or None,
             row["direct_manager_id"],
             row["indirect_manager_id"],
             row["dept_head_id"],

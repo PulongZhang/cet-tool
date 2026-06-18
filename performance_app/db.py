@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import Flask, current_app, g
 from werkzeug.security import generate_password_hash
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DEFAULT_ACCOUNT_PASSWORD = "admin123"
 DEFAULT_BUILT_IN_ACCOUNTS = {
     "employee": ("EMPLOYEE",),
@@ -25,6 +25,11 @@ DEMO_EMPLOYEES = (
         "level": "P4",
         "group_code": "EMPLOYEE_P4_10",
         "dept_name": "演示部门",
+        "dept_level_1": "演示部门",
+        "dept_level_2": None,
+        "dept_level_3": None,
+        "dept_level_4": None,
+        "post": "软件工程师",
         "direct_manager_id": "direct",
         "indirect_manager_id": "indirect",
         "dept_head_id": "dept",
@@ -36,6 +41,11 @@ DEMO_EMPLOYEES = (
         "level": "不适用",
         "group_code": "MANAGEMENT",
         "dept_name": "演示部门",
+        "dept_level_1": "演示部门",
+        "dept_level_2": None,
+        "dept_level_3": None,
+        "dept_level_4": None,
+        "post": "技术经理",
         "direct_manager_id": "indirect",
         "indirect_manager_id": "dept",
         "dept_head_id": "dept",
@@ -47,6 +57,11 @@ DEMO_EMPLOYEES = (
         "level": "不适用",
         "group_code": "MANAGEMENT",
         "dept_name": "演示部门",
+        "dept_level_1": "演示部门",
+        "dept_level_2": None,
+        "dept_level_3": None,
+        "dept_level_4": None,
+        "post": "技术总监",
         "direct_manager_id": "dept",
         "indirect_manager_id": "dept",
         "dept_head_id": "dept",
@@ -58,6 +73,11 @@ DEMO_EMPLOYEES = (
         "level": "不适用",
         "group_code": "MANAGEMENT",
         "dept_name": "演示部门",
+        "dept_level_1": "演示部门",
+        "dept_level_2": None,
+        "dept_level_3": None,
+        "dept_level_4": None,
+        "post": "部门负责人",
         "direct_manager_id": "dept",
         "indirect_manager_id": "dept",
         "dept_head_id": "dept",
@@ -158,9 +178,10 @@ def ensure_demo_workflow_data(connection: sqlite3.Connection) -> None:
             """
             insert into cycle_employee_snapshot
                 (cycle_id, emp_id, emp_name, sequence, level, group_code, dept_name,
+                 dept_level_1, dept_level_2, dept_level_3, dept_level_4, post,
                  direct_manager_id, indirect_manager_id, dept_head_id, active)
             values
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             """,
             (
                 cycle_id,
@@ -170,6 +191,11 @@ def ensure_demo_workflow_data(connection: sqlite3.Connection) -> None:
                 employee["level"],
                 employee["group_code"],
                 employee["dept_name"],
+                employee.get("dept_level_1") or None,
+                employee.get("dept_level_2") or None,
+                employee.get("dept_level_3") or None,
+                employee.get("dept_level_4") or None,
+                employee.get("post") or None,
                 employee["direct_manager_id"],
                 employee["indirect_manager_id"],
                 employee["dept_head_id"],

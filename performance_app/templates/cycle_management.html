@@ -26,6 +26,146 @@
     </form>
 </section>
 
+{% if cycles %}
+<section class="card">
+    <h2>员工导入</h2>
+    <p class="muted">选择一个"准备中"的周期，导入本周期参与考核的员工清单。系统将自动生成员工登录账号（初始密码为 ChangeMe123!）并分配对应角色。</p>
+    <div class="form-grid">
+        <div class="label">选择周期</div>
+        <select id="cycleSelect" name="cycle_id">
+            <option value="">-- 请选择 --</option>
+            {% for cycle in cycles %}
+            {% if cycle.status == 'PREPARING' %}
+            <option value="{{ cycle.id }}">{{ cycle.cycle_name }} ({{ cycle.start_date }} ~ {{ cycle.end_date }})</option>
+            {% endif %}
+            {% endfor %}
+        </select>
+        <div class="label">下载模板</div>
+        <button type="button" class="btn" id="downloadTemplateBtn" disabled>下载 Excel 模板</button>
+        <div class="label">上传文件</div>
+        <input type="file" id="employeeFile" accept=".xlsx,.xls" disabled>
+        <div></div>
+        <button type="button" class="btn primary" id="uploadBtn" disabled>导入员工清单</button>
+    </div>
+    <div id="importResult" style="margin-top: 14px;"></div>
+</section>
+{% endif %}
+
+<style>
+.employee-import-form {
+    margin: 14px 0;
+}
+.employee-import-form .form-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 16px;
+    align-items: start;
+}
+.employee-import-form .label {
+    font-weight: 600;
+    min-width: 80px;
+}
+#importResult {
+    min-height: 40px;
+}
+.success-box {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 12px;
+    border-radius: 4px;
+    margin-top: 12px;
+}
+.error-box {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 12px;
+    border-radius: 4px;
+    margin-top: 12px;
+}
+.error-list {
+    margin-top: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.error-item {
+    padding: 4px 8px;
+    border-bottom: 1px solid #f5c6cb;
+}
+</style>
+
+<script>
+const cycleSelect = document.getElementById('cycleSelect');
+const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
+const employeeFile = document.getElementById('employeeFile');
+const uploadBtn = document.getElementById('uploadBtn');
+const importResult = document.getElementById('importResult');
+let selectedCycleId = null;
+
+cycleSelect.addEventListener('change', function() {
+    selectedCycleId = this.value;
+    const disabled = !selectedCycleId;
+    downloadTemplateBtn.disabled = disabled;
+    employeeFile.disabled = disabled;
+    uploadBtn.disabled = disabled;
+});
+
+downloadTemplateBtn.addEventListener('click', function() {
+    if (!selectedCycleId) return;
+    window.location.href = `/cycles/${selectedCycleId}/employees/template`;
+});
+
+uploadBtn.addEventListener('click', function() {
+    if (!selectedCycleId || !employeeFile.files.length) {
+        showError('请选择周期和文件');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', employeeFile.files[0]);
+
+    importResult.innerHTML = '<div class="muted">正在导入...</div>';
+
+    fetch(`/cycles/${selectedCycleId}/employees/upload`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.errors && data.errors.length > 0) {
+            showError(`导入完成：成功 ${data.summary.success_count} 条，失败 ${data.summary.failed_count} 条`, data.errors);
+        } else {
+            showSuccess(`导入成功！共导入 ${data.summary.success_count} 名员工。系统已自动生成登录账号和初始密码（ChangeMe123!）。`);
+            employeeFile.value = '';
+        }
+    })
+    .catch(error => {
+        showError('导入失败：' + error.message);
+    });
+});
+
+function showSuccess(message) {
+    importResult.innerHTML = `<div class="success-box">${message}</div>`;
+}
+
+function showError(message, errors = null) {
+    let html = `<div class="error-box">${message}`;
+    if (errors && errors.length > 0) {
+        html += `<div class="error-list">`;
+        errors.slice(0, 10).forEach(err => {
+            html += `<div class="error-item">第${err.row_number}行 (${err.emp_id || '未知工号'}): ${err.error_message}</div>`;
+        });
+        if (errors.length > 10) {
+            html += `<div class="error-item">...还有 ${errors.length - 10} 条错误</div>`;
+        }
+        html += `</div>`;
+    }
+    html += `</div>`;
+    importResult.innerHTML = html;
+}
+</script>
+
 <section class="card">
     <h2>周期列表</h2>
     {% if cycles %}
