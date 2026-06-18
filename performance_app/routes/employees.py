@@ -74,6 +74,7 @@ def add_single_employee(cycle_id: int):
     post = payload.get("post") or ""
     level = payload.get("level")
     sequence = payload.get("sequence")
+    roles = payload.get("roles") or ""
     direct_manager_id = payload.get("direct_manager_id")
     indirect_manager_id = payload.get("indirect_manager_id")
     dept_head_id = payload.get("dept_head_id")
@@ -103,6 +104,7 @@ def add_single_employee(cycle_id: int):
         "post": post,
         "level": level,
         "sequence": sequence,
+        "roles": roles,
         "direct_manager_id": direct_manager_id,
         "indirect_manager_id": indirect_manager_id,
         "dept_head_id": dept_head_id,

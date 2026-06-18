@@ -5,7 +5,7 @@ from typing import BinaryIO
 
 from openpyxl import Workbook, load_workbook
 
-EMPLOYEE_HEADERS = ["工号", "姓名", "一级部门", "二级部门", "三级部门", "四级部门", "岗位", "职级", "序列", "直接上级", "间接上级", "部门负责人"]
+EMPLOYEE_HEADERS = ["工号", "姓名", "一级部门", "二级部门", "三级部门", "四级部门", "岗位", "职级", "序列", "角色", "直接上级", "间接上级", "部门负责人"]
 OBJECTIVE_HEADERS = ["工号", "勤奋月1", "勤奋月2", "勤奋月3", "考勤异常次数", "日志异常次数", "学习时长"]
 
 EMPLOYEE_FIELD_MAP = {
@@ -18,6 +18,7 @@ EMPLOYEE_FIELD_MAP = {
     "岗位": "post",
     "职级": "level",
     "序列": "sequence",
+    "角色": "roles",
     "直接上级": "direct_manager_id",
     "间接上级": "indirect_manager_id",
     "部门负责人": "dept_head_id",

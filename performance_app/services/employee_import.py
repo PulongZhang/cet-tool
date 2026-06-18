@@ -27,6 +27,7 @@ OPTIONAL_FIELDS = [
     "dept_level_3",
     "dept_level_4",
     "post",
+    "roles",
 ]
 DEFAULT_PASSWORD = "ChangeMe123!"
 
@@ -75,9 +76,30 @@ def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[di
 
 def role_map_for_rows(rows: list[dict]) -> dict[str, set[str]]:
     imported_ids = {row["emp_id"] for row in rows}
-    roles = {emp_id: {"EMPLOYEE"} for emp_id in imported_ids}
+    roles = {emp_id: set() for emp_id in imported_ids}
 
     for row in rows:
+        emp_id = row["emp_id"]
+
+        # 如果Excel中指定了角色，使用指定的角色
+        if row.get("roles"):
+            specified_roles = str(row["roles"]).strip()
+            # 支持多种分隔符：逗号、分号、空格、斜杠
+            for sep in [",", ";", " ", "/", "|", "\n"]:
+                if sep in specified_roles:
+                    role_list = [r.strip() for r in specified_roles.split(sep) if r.strip()]
+                    roles[emp_id] = set(role_list)
+                    break
+            else:
+                # 没有分隔符，作为单个角色
+                if specified_roles:
+                    roles[emp_id] = {specified_roles}
+        else:
+            # 没有指定角色，默认为员工
+            roles[emp_id] = {"EMPLOYEE"}
+
+        # 无论Excel中是否指定角色，都根据组织关系推断管理角色
+        # 这样可以确保既有的管理功能正常工作
         if row["direct_manager_id"] in imported_ids:
             roles[row["direct_manager_id"]].add("DIRECT_MANAGER")
         if row["indirect_manager_id"] in imported_ids:

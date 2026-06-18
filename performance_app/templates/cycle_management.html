@@ -71,6 +71,16 @@
             <option value="员工序列">员工序列</option>
             <option value="管理序列">管理序列</option>
         </select>
+        <div class="label">角色</div>
+        <select name="roles" multiple style="height: 80px;">
+            <option value="EMPLOYEE">员工（EMPLOYEE）</option>
+            <option value="DIRECT_MANAGER">直接上级（DIRECT_MANAGER）</option>
+            <option value="INDIRECT_MANAGER">间接上级（INDIRECT_MANAGER）</option>
+            <option value="DEPT_HEAD">部门负责人（DEPT_HEAD）</option>
+            <option value="HRBP">HRBP</option>
+            <option value="ADMIN">管理员（ADMIN）</option>
+        </select>
+        <div></div><div class="muted" style="font-size: 12px;">按住Ctrl键可多选，留空则自动分配</div>
         <div class="label">直接上级</div><input type="text" name="direct_manager_id" required placeholder="直接上级工号">
         <div class="label">间接上级</div><input type="text" name="indirect_manager_id" required placeholder="间接上级工号">
         <div class="label">部门负责人</div><input type="text" name="dept_head_id" required placeholder="部门负责人工号">
@@ -217,11 +227,20 @@ addEmployeeForm.addEventListener('submit', function(e) {
 
     const formData = new FormData(addEmployeeForm);
     const data = {};
+    // 处理多选的角色字段
+    const selectedRoles = [];
+    addEmployeeForm.querySelectorAll('select[name="roles"] option:checked').forEach(option => {
+        selectedRoles.push(option.value);
+    });
     formData.forEach((value, key) => {
-        if (key !== 'cycle_id') {
+        if (key !== 'cycle_id' && key !== 'roles') {
             data[key] = value;
         }
     });
+    // 如果有选择角色，添加到数据中
+    if (selectedRoles.length > 0) {
+        data['roles'] = selectedRoles.join(',');
+    }
 
     addEmployeeResult.innerHTML = '<div class="muted">正在添加...</div>';
 
