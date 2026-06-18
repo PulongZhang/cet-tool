@@ -191,7 +191,21 @@ def inject_page_context():
 def dashboard():
     cycle_id = selected_cycle_id()
     user = current_page_user()
-    return render_template("dashboard.html", cycles=available_cycles(), cycle_id=cycle_id, progress=workflow_progress(cycle_id, user))
+    progress = workflow_progress(cycle_id, user)
+
+    # 为员工角色获取员工详细信息
+    employee_info = None
+    if user and "EMPLOYEE" in user.get("roles", []):
+        from performance_app.repositories.records import get_my_record
+        employee_info = get_my_record(cycle_id, user["emp_id"]) if cycle_id else None
+
+    return render_template(
+        "dashboard.html",
+        cycles=available_cycles(),
+        cycle_id=cycle_id,
+        progress=progress,
+        employee_info=employee_info,
+    )
 
 
 @bp.get("/login")
