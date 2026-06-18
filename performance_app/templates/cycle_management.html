@@ -51,43 +51,6 @@
     </div>
     <div id="importResult" style="margin-top: 14px;"></div>
 </section>
-
-<section class="card">
-    <h2>新增单个员工</h2>
-    <p class="muted">为"准备中"的周期新增单个参与考核的员工。系统将自动生成登录账号（初始密码为 ChangeMe123!）并分配对应角色。</p>
-    <form method="post" action="/api/cycles/0/employees/add" id="addEmployeeForm" class="form-grid">
-        <input type="hidden" name="cycle_id" id="addEmployeeCycleId">
-        <div class="label">工号</div><input type="text" name="emp_id" required placeholder="请输入工号">
-        <div class="label">姓名</div><input type="text" name="emp_name" required placeholder="请输入姓名">
-        <div class="label">一级部门</div><input type="text" name="dept_level_1" placeholder="选填">
-        <div class="label">二级部门</div><input type="text" name="dept_level_2" placeholder="选填">
-        <div class="label">三级部门</div><input type="text" name="dept_level_3" placeholder="选填">
-        <div class="label">四级部门</div><input type="text" name="dept_level_4" placeholder="选填">
-        <div class="label">岗位</div><input type="text" name="post" placeholder="选填">
-        <div class="label">职级</div><input type="text" name="level" required placeholder="P1-P10或不适用">
-        <div class="label">序列</div>
-        <select name="sequence" required>
-            <option value="">请选择</option>
-            <option value="员工序列">员工序列</option>
-            <option value="管理序列">管理序列</option>
-        </select>
-        <div class="label">角色</div>
-        <select name="roles" multiple style="height: 80px;">
-            <option value="EMPLOYEE">员工（EMPLOYEE）</option>
-            <option value="DIRECT_MANAGER">直接上级（DIRECT_MANAGER）</option>
-            <option value="INDIRECT_MANAGER">间接上级（INDIRECT_MANAGER）</option>
-            <option value="DEPT_HEAD">部门负责人（DEPT_HEAD）</option>
-            <option value="HRBP">HRBP</option>
-            <option value="ADMIN">管理员（ADMIN）</option>
-        </select>
-        <div></div><div class="muted" style="font-size: 12px;">按住Ctrl键可多选，留空则自动分配</div>
-        <div class="label">直接上级</div><input type="text" name="direct_manager_id" required placeholder="直接上级工号">
-        <div class="label">间接上级</div><input type="text" name="indirect_manager_id" required placeholder="间接上级工号">
-        <div class="label">部门负责人</div><input type="text" name="dept_head_id" required placeholder="部门负责人工号">
-        <div></div><button type="submit" class="btn primary">添加员工</button>
-    </form>
-    <div id="addEmployeeResult" style="margin-top: 14px;"></div>
-</section>
 {% endif %}
 
 <style>
@@ -141,9 +104,6 @@ const employeeFile = document.getElementById('employeeFile');
 const uploadBtn = document.getElementById('uploadBtn');
 const downloadAccountsBtn = document.getElementById('downloadAccountsBtn');
 const importResult = document.getElementById('importResult');
-const addEmployeeForm = document.getElementById('addEmployeeForm');
-const addEmployeeResult = document.getElementById('addEmployeeResult');
-const addEmployeeCycleId = document.getElementById('addEmployeeCycleId');
 let selectedCycleId = null;
 
 cycleSelect.addEventListener('change', function() {
@@ -153,8 +113,6 @@ cycleSelect.addEventListener('change', function() {
     employeeFile.disabled = disabled;
     uploadBtn.disabled = disabled;
     downloadAccountsBtn.disabled = disabled;
-    // 更新新增员工表单的周期ID
-    addEmployeeCycleId.value = selectedCycleId;
 });
 
 downloadTemplateBtn.addEventListener('click', function() {
@@ -216,61 +174,20 @@ function showError(message, errors = null) {
     importResult.innerHTML = html;
 }
 
-// 新增单个员工表单处理
-addEmployeeForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const cycleId = addEmployeeCycleId.value;
-    if (!cycleId) {
-        showAddError('请先选择周期');
-        return;
-    }
-
-    const formData = new FormData(addEmployeeForm);
-    const data = {};
-    // 处理多选的角色字段
-    const selectedRoles = [];
-    addEmployeeForm.querySelectorAll('select[name="roles"] option:checked').forEach(option => {
-        selectedRoles.push(option.value);
-    });
-    formData.forEach((value, key) => {
-        if (key !== 'cycle_id' && key !== 'roles') {
-            data[key] = value;
+function showError(message, errors = null) {
+    let html = `<div class="error-box">${message}`;
+    if (errors && errors.length > 0) {
+        html += `<div class="error-list">`;
+        errors.slice(0, 10).forEach(err => {
+            html += `<div class="error-item">第${err.row_number}行 (${err.emp_id || '未知工号'}): ${err.error_message}</div>`;
+        });
+        if (errors.length > 10) {
+            html += `<div class="error-item">...还有 ${errors.length - 10} 条错误</div>`;
         }
-    });
-    // 如果有选择角色，添加到数据中
-    if (selectedRoles.length > 0) {
-        data['roles'] = selectedRoles.join(',');
+        html += `</div>`;
     }
-
-    addEmployeeResult.innerHTML = '<div class="muted">正在添加...</div>';
-
-    fetch(`/cycles/${cycleId}/employees/add`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.errors && result.errors.length > 0) {
-            showAddError(`添加失败：${result.errors[0].error_message}`);
-        } else {
-            showAddSuccess(`员工 ${data.emp_id} (${data.emp_name}) 添加成功！`);
-            addEmployeeForm.reset();
-        }
-    })
-    .catch(error => {
-        showAddError('添加失败：' + error.message);
-    });
-});
-
-function showAddSuccess(message) {
-    addEmployeeResult.innerHTML = `<div class="success-box">${message}</div>`;
-}
-
-function showAddError(message) {
-    addEmployeeResult.innerHTML = `<div class="error-box">${message}</div>`;
+    html += `</div>`;
+    importResult.innerHTML = html;
 }
 </script>
 
