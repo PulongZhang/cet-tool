@@ -7,7 +7,8 @@
 <div class="demo-status" role="region" aria-label="当前状态">
     <div class="status-item">工号<strong>{{ employee_info.emp_id }}</strong></div>
     <div class="status-item">姓名<strong>{{ employee_info.emp_name }}</strong></div>
-    <div class="status-item">部门<strong>{{ employee_info.dept_name }}</strong></div>
+    {% set dept_display = (employee_info.dept_level_3 + '-' + employee_info.dept_level_4) if employee_info.dept_level_3 and employee_info.dept_level_4 else (employee_info.dept_level_3 or employee_info.dept_level_4 or employee_info.dept_name) %}
+    <div class="status-item">部门<strong>{{ dept_display }}</strong></div>
     <div class="status-item">当前状态<strong>{{ status_label(employee_info.status) }}</strong></div>
 </div>
 {% else %}
