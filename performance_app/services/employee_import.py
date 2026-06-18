@@ -52,7 +52,8 @@ def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[di
 
     normalized = {field: str(row[field]).strip() for field in REQUIRED_FIELDS}
     for field in OPTIONAL_FIELDS:
-        normalized[field] = (row.get(field) or "").strip()
+        value = row.get(field)
+        normalized[field] = value.strip() if value else ""
 
     try:
         group_code = derive_group_code(normalized["sequence"], normalized["level"])
