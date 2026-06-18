@@ -25,7 +25,8 @@ def get_record(record_id: int) -> dict | None:
 def get_my_record(cycle_id: int, emp_id: str) -> dict | None:
     row = get_db().execute(
         """
-        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+        select r.*, s.emp_name, s.dept_name, s.dept_level_1, s.dept_level_2, s.dept_level_3, s.dept_level_4, s.post,
+               s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and r.emp_id = ?
