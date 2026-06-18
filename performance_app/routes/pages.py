@@ -112,13 +112,29 @@ def status_label(status: str | None) -> str:
     return STATUS_LABELS.get(status, status)
 
 
-def workflow_progress(cycle_id: int | None) -> dict:
+def workflow_progress(cycle_id: int | None, user: dict | None = None) -> dict:
     if cycle_id is None:
         return {"total": 0, "current_stage": "暂无周期", "stages": []}
-    rows = get_db().execute(
-        "select status, count(*) as count from evaluation_record where cycle_id = ? group by status",
-        (cycle_id,),
-    ).fetchall()
+
+    # 如果用户是直接上级，只统计该用户的下属
+    if user and "DIRECT_MANAGER" in user.get("roles", []):
+        rows = get_db().execute(
+            """
+            select r.status, count(*) as count
+            from evaluation_record r
+            join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+            where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
+            group by r.status
+            """,
+            (cycle_id, user["emp_id"], user["emp_id"]),
+        ).fetchall()
+    else:
+        # 其他角色查看全局统计
+        rows = get_db().execute(
+            "select status, count(*) as count from evaluation_record where cycle_id = ? group by status",
+            (cycle_id,),
+        ).fetchall()
+
     status_counts = {row["status"]: row["count"] for row in rows}
     stages = []
     for stage in WORKFLOW_STAGES:
@@ -173,7 +189,8 @@ def inject_page_context():
 @login_required
 def dashboard():
     cycle_id = selected_cycle_id()
-    return render_template("dashboard.html", cycles=available_cycles(), cycle_id=cycle_id, progress=workflow_progress(cycle_id))
+    user = current_page_user()
+    return render_template("dashboard.html", cycles=available_cycles(), cycle_id=cycle_id, progress=workflow_progress(cycle_id, user))
 
 
 @bp.get("/login")
