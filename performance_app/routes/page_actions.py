@@ -111,6 +111,20 @@ def page_cycle_close():
     return redirect("/cycles/page")
 
 
+@bp.post("/page/cycles/revert")
+@role_required("HRBP", "ADMIN")
+def page_cycle_revert():
+    """撤回进行中的周期到准备中状态"""
+    cycle_id = form_cycle_id()
+    if cycle_id is not None:
+        cycle = update_cycle_status(cycle_id, "ACTIVE", "PREPARING")
+        if cycle is not None:
+            operator_id, operator_name = current_operator()
+            write_cycle_audit("REVERT_CYCLE", cycle, operator_id, operator_name, before_snapshot=cycle)
+            get_db().commit()
+    return redirect("/cycles/page")
+
+
 @bp.post("/page/cycles/delete")
 @role_required("HRBP", "ADMIN")
 def page_cycle_delete():

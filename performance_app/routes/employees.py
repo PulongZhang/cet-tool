@@ -59,6 +59,64 @@ def upload_employees(cycle_id: int):
     return jsonify(result)
 
 
+@bp.post("/cycles/<int:cycle_id>/employees/add")
+def add_single_employee(cycle_id: int):
+    """添加单个员工到周期"""
+    payload = request.get_json(silent=True) or {}
+
+    # 获取表单字段
+    emp_id = payload.get("emp_id")
+    emp_name = payload.get("emp_name")
+    dept_level_1 = payload.get("dept_level_1") or ""
+    dept_level_2 = payload.get("dept_level_2") or ""
+    dept_level_3 = payload.get("dept_level_3") or ""
+    dept_level_4 = payload.get("dept_level_4") or ""
+    post = payload.get("post") or ""
+    level = payload.get("level")
+    sequence = payload.get("sequence")
+    direct_manager_id = payload.get("direct_manager_id")
+    indirect_manager_id = payload.get("indirect_manager_id")
+    dept_head_id = payload.get("dept_head_id")
+
+    # 验证必填字段
+    required_fields = {
+        "emp_id": emp_id,
+        "emp_name": emp_name,
+        "sequence": sequence,
+        "level": level,
+        "direct_manager_id": direct_manager_id,
+        "indirect_manager_id": indirect_manager_id,
+        "dept_head_id": dept_head_id,
+    }
+    missing_fields = [k for k, v in required_fields.items() if not v]
+    if missing_fields:
+        return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+
+    # 构建员工数据行
+    row_data = {
+        "emp_id": emp_id,
+        "emp_name": emp_name,
+        "dept_level_1": dept_level_1,
+        "dept_level_2": dept_level_2,
+        "dept_level_3": dept_level_3,
+        "dept_level_4": dept_level_4,
+        "post": post,
+        "level": level,
+        "sequence": sequence,
+        "direct_manager_id": direct_manager_id,
+        "indirect_manager_id": indirect_manager_id,
+        "dept_head_id": dept_head_id,
+    }
+
+    operator_id = request.headers.get("X-Operator-Id", "system")
+    result = import_employee_rows(cycle_id, f"add-{emp_id}.json", [row_data], operator_id)
+
+    if result.get("errors"):
+        return jsonify(result), 400
+
+    return jsonify(result)
+
+
 ACCOUNT_EXPORT_HEADERS = ["工号", "姓名", "部门", "序列", "职级", "登录账号", "账号状态", "角色", "直接上级", "间接上级", "部门负责人", "初始密码"]
 
 
