@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ stage_title }}明细 - 绩效考核评分工具{% endblock %}
+{% block page_title %}{{ stage_title }}明细{% endblock %}
+{% block page_subtitle %}查看当前流程阶段的所有员工记录详情。{% endblock %}
+{% block content %}
+<section class="card">
+    <h2>阶段统计</h2>
+    <div class="flow">
+        {% for status, count in status_counts.items() %}
+        <div class="step">
+            {{ status_label(status) }}<br><span class="muted">{{ count }} 人</span>
+        </div>
+        {% if not loop.last %}<span class="arrow">→</span>{% endif %}
+        {% else %}
+        <div class="step active">暂无数据<br><span class="muted">0 人</span></div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="card">
+    <h2>员工记录列表</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>工号</th>
+                <th>姓名</th>
+                <th>部门</th>
+                <th>职级</th>
+                <th>状态</th>
+                <th>直接上级</th>
+                <th>间接上级</th>
+                <th>部门负责人</th>
+                <th>提交时间</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr>
+                <td>{{ record.emp_id }}</td>
+                <td>{{ record.emp_name }}</td>
+                <td>{{ record.dept_name }}</td>
+                <td>{{ record.level }}</td>
+                <td>{{ status_label(record.status) }}</td>
+                <td>{{ record.direct_manager_id or '-' }}</td>
+                <td>{{ record.indirect_manager_id or '-' }}</td>
+                <td>{{ record.dept_head_id or '-' }}</td>
+                <td>{{ record.submitted_at or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="muted">当前阶段暂无员工记录。</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="card">
+    <a href="/" class="btn">返回仪表盘</a>
+</section>
+{% endblock %}

@@ -14,6 +14,7 @@ from performance_app.repositories.records import (
     distribution_for_records,
     get_my_record,
     list_direct_reports,
+    list_records_by_statuses,
     list_review_records,
 )
 from performance_app.services.calculation_runner import list_cycle_results
@@ -293,3 +294,49 @@ def results_page():
     cycle_id = selected_cycle_id()
     records = list_cycle_results(cycle_id) if cycle_id else []
     return render_template("results.html", cycles=available_cycles(), cycle_id=cycle_id, records=records)
+
+
+# 阶段状态映射，用于路由参数验证
+STAGE_STATUS_MAP = {
+    "self": ["SELF_PENDING", "SELF_DRAFT"],
+    "direct": ["DIRECT_PENDING", "DIRECT_DRAFT"],
+    "indirect": ["INDIRECT_PENDING"],
+    "dept_head": ["DEPT_HEAD_PENDING"],
+    "hr": ["HR_PENDING", "INITIAL_CALCULATED", "FINAL_CONFIRMED"],
+}
+
+STAGE_LABELS = {
+    "self": "员工自评",
+    "direct": "直接上级评分",
+    "indirect": "间接上级审阅",
+    "dept_head": "部门负责人确认",
+    "hr": "HR 计算导出",
+}
+
+
+@bp.get("/stage/<stage_name>")
+@role_required("HRBP", "ADMIN")
+def stage_detail_page(stage_name: str):
+    """显示某个流程阶段的明细（HR/Admin专用）"""
+    if stage_name not in STAGE_STATUS_MAP:
+        return render_template("forbidden.html", required_roles=["HRBP", "ADMIN"], error="无效的阶段参数"), 400
+
+    cycle_id = selected_cycle_id()
+    statuses = STAGE_STATUS_MAP[stage_name]
+    records = list_records_by_statuses(cycle_id, statuses) if cycle_id else []
+
+    # 计算各状态分布
+    status_counts = {}
+    for record in records:
+        status = record.get("status", "UNKNOWN")
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+    return render_template(
+        "stage_detail.html",
+        cycles=available_cycles(),
+        cycle_id=cycle_id,
+        stage_name=stage_name,
+        stage_title=STAGE_LABELS.get(stage_name, stage_name),
+        records=records,
+        status_counts=status_counts,
+    )

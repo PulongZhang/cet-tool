@@ -189,3 +189,19 @@ def update_status(record_id: int, status: str) -> dict:
         (status, record_id),
     )
     return get_record(record_id)
+
+
+def list_records_by_statuses(cycle_id: int, statuses: list[str]) -> list[dict]:
+    """根据状态列表获取考核记录（用于HR查看各阶段明细）"""
+    placeholders = ",".join("?" * len(statuses))
+    rows = get_db().execute(
+        f"""
+        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+        from evaluation_record r
+        join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+        where r.cycle_id = ? and r.status in ({placeholders})
+        order by r.emp_id
+        """,
+        (cycle_id, *statuses),
+    ).fetchall()
+    return [row_to_record(row) for row in rows]

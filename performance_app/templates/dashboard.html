@@ -15,9 +15,21 @@
 <section class="card">
     <h2>流程进度</h2>
     <div class="flow">
+        {% set stage_links = {
+            '员工自评': 'self',
+            '直接上级评分': 'direct',
+            '间接上级审阅': 'indirect',
+            '部门负责人确认': 'dept_head',
+            'HR 计算导出': 'hr'
+        } %}
+        {% set is_hr_admin = 'HRBP' in current_user.roles or 'ADMIN' in current_user.roles %}
         {% for stage in progress.stages %}
         <div class="step {% if stage.title == progress.current_stage %}active{% elif stage.count == 0 and progress.total > 0 %}done{% endif %}">
+            {% if is_hr_admin and stage_links.get(stage.title) and stage.count > 0 %}
+            <a href="/stage/{{ stage_links.get(stage.title) }}?cycle_id={{ cycle_id }}">{{ stage.title }}</a><br><span class="muted">{{ stage.count }} 人</span>
+            {% else %}
             {{ stage.title }}<br><span class="muted">{{ stage.count }} 人</span>
+            {% endif %}
         </div>
         {% if not loop.last %}<span class="arrow">→</span>{% endif %}
         {% else %}
