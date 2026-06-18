@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from io import BytesIO
+
 from flask import Blueprint, jsonify, request, send_file
 
 from performance_app.repositories.employees import list_cycle_employees, list_cycle_accounts, list_import_errors
