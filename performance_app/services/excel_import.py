@@ -68,6 +68,8 @@ def parse_workbook(file: BinaryIO, field_map: dict[str, str]) -> list[dict]:
             continue
         row = {}
         for header, field in field_map.items():
-            row[field] = values[header_indexes[header]]
+            value = values[header_indexes[header]]
+            # 将所有值转换为字符串，处理数字类型
+            row[field] = str(value) if value is not None else ""
         rows.append(row)
     return rows
