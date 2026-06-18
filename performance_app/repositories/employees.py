@@ -122,3 +122,35 @@ def list_import_errors(batch_id: int) -> list[dict]:
         (batch_id,),
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def list_cycle_accounts(cycle_id: int) -> list[dict]:
+    """获取周期内的员工账号信息（用于导出账号清单）"""
+    rows = get_db().execute(
+        """
+        select
+            s.emp_id,
+            s.emp_name,
+            s.dept_name,
+            s.dept_level_1,
+            s.sequence,
+            s.level,
+            u.username,
+            u.status,
+            s.direct_manager_id,
+            s.indirect_manager_id,
+            s.dept_head_id,
+            (
+                select group_concat(role_code, ',')
+                from user_role ur
+                where ur.user_id = u.id
+                order by role_code
+            ) as roles
+        from cycle_employee_snapshot s
+        left join user_account u on u.emp_id = s.emp_id
+        where s.cycle_id = ? and s.active = 1
+        order by s.emp_id
+        """,
+        (cycle_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]

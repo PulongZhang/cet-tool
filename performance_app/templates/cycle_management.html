@@ -46,6 +46,8 @@
         <input type="file" id="employeeFile" accept=".xlsx,.xls" disabled>
         <div></div>
         <button type="button" class="btn primary" id="uploadBtn" disabled>导入员工清单</button>
+        <div class="label">账号清单</div>
+        <button type="button" class="btn" id="downloadAccountsBtn" disabled>下载账号清单</button>
     </div>
     <div id="importResult" style="margin-top: 14px;"></div>
 </section>
@@ -100,6 +102,7 @@ const cycleSelect = document.getElementById('cycleSelect');
 const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
 const employeeFile = document.getElementById('employeeFile');
 const uploadBtn = document.getElementById('uploadBtn');
+const downloadAccountsBtn = document.getElementById('downloadAccountsBtn');
 const importResult = document.getElementById('importResult');
 let selectedCycleId = null;
 
@@ -109,11 +112,17 @@ cycleSelect.addEventListener('change', function() {
     downloadTemplateBtn.disabled = disabled;
     employeeFile.disabled = disabled;
     uploadBtn.disabled = disabled;
+    downloadAccountsBtn.disabled = disabled;
 });
 
 downloadTemplateBtn.addEventListener('click', function() {
     if (!selectedCycleId) return;
     window.location.href = `/cycles/${selectedCycleId}/employees/template`;
+});
+
+downloadAccountsBtn.addEventListener('click', function() {
+    if (!selectedCycleId) return;
+    window.location.href = `/cycles/${selectedCycleId}/accounts/export`;
 });
 
 uploadBtn.addEventListener('click', function() {
