@@ -162,6 +162,19 @@ def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operat
             "errors": errors,
         }
 
+    # 先删除该周期中所有在导入数据中的员工记录（实现覆盖效果）
+    imported_emp_ids = [row["emp_id"] for row in valid_rows]
+    if imported_emp_ids:
+        placeholders = ",".join("?" * len(imported_emp_ids))
+        get_db().execute(
+            f"DELETE FROM evaluation_record WHERE cycle_id = ? AND emp_id IN ({placeholders})",
+            (cycle_id, *imported_emp_ids),
+        )
+        get_db().execute(
+            f"DELETE FROM cycle_employee_snapshot WHERE cycle_id = ? AND emp_id IN ({placeholders})",
+            (cycle_id, *imported_emp_ids),
+        )
+
     roles_by_emp_id = role_map_for_rows(valid_rows)
     for row in valid_rows:
         upsert_snapshot(cycle_id, row, row["group_code"])
