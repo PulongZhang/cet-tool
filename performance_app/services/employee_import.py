@@ -31,6 +31,9 @@ OPTIONAL_FIELDS = [
 ]
 DEFAULT_PASSWORD = "ChangeMe123!"
 
+# 系统允许的角色列表
+VALID_ROLES = {"EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD", "HRBP", "ADMIN"}
+
 
 def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[dict | None, dict | None]:
     for field in REQUIRED_FIELDS:
@@ -68,6 +71,28 @@ def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[di
 
     # 组合部门名称：使用一级部门作为主要部门名称
     normalized["dept_name"] = normalized["dept_level_1"] or normalized.get("dept_level_2") or normalized.get("dept_level_3") or "未知部门"
+
+    # 验证角色值
+    roles_value = normalized.get("roles", "")
+    if roles_value:
+        # 支持多种分隔符：逗号、分号、空格、斜杠
+        for sep in [",", ";", " ", "/", "|", "\n"]:
+            if sep in roles_value:
+                role_list = [r.strip() for r in roles_value.split(sep) if r.strip()]
+                break
+        else:
+            # 没有分隔符，作为单个角色
+            role_list = [roles_value] if roles_value else []
+
+        # 验证每个角色是否在允许的列表中
+        invalid_roles = [r for r in role_list if r not in VALID_ROLES]
+        if invalid_roles:
+            return None, {
+                "row_number": row_number,
+                "emp_id": emp_id,
+                "field_name": "roles",
+                "error_message": f"Invalid role(s): {', '.join(invalid_roles)}. Valid roles are: {', '.join(sorted(VALID_ROLES))}",
+            }
 
     seen_emp_ids.add(emp_id)
     normalized["group_code"] = group_code

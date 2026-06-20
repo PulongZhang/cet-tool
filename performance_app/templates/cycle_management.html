@@ -140,7 +140,14 @@ uploadBtn.addEventListener('click', function() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(response.status + ': ' + text);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.errors && data.errors.length > 0) {
             showError(`导入完成：成功 ${data.summary.success_count} 条，失败 ${data.summary.failed_count} 条`, data.errors);
@@ -150,7 +157,12 @@ uploadBtn.addEventListener('click', function() {
         }
     })
     .catch(error => {
-        showError('导入失败：' + error.message);
+        let errorMsg = '导入失败：' + error.message;
+        // 提取更有用的错误信息
+        if (error.message.includes('Unexpected token')) {
+            errorMsg = '导入失败：服务器返回错误，请检查Excel文件格式是否正确，特别是角色列必须使用英文代码（如 EMPLOYEE、DIRECT_MANAGER 等）';
+        }
+        showError(errorMsg);
     });
 });
 
