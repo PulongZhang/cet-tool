@@ -18,6 +18,9 @@
             <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
             <button class="btn" type="submit">导出最终结果 Excel</button>
         </form>
+        {% if export_download_url %}
+        <a href="{{ export_download_url }}" class="btn green" download="{{ export_file_name }}">下载已导出文件</a>
+        {% endif %}
     </div>
 </section>
 

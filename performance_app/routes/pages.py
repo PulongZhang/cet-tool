@@ -549,7 +549,11 @@ def objective_import_page():
 def results_page():
     cycle_id = selected_cycle_id()
     records = list_cycle_results(cycle_id) if cycle_id else []
-    return render_template("results.html", cycles=available_cycles(), cycle_id=cycle_id, records=records)
+    # 获取导出下载链接
+    export_download_url = session.pop("export_download_url", None)
+    export_file_name = session.pop("export_file_name", None)
+    return render_template("results.html", cycles=available_cycles(), cycle_id=cycle_id, records=records,
+                          export_download_url=export_download_url, export_file_name=export_file_name)
 
 
 @bp.get("/results/adjust/<int:record_id>")

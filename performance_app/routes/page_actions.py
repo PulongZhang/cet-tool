@@ -354,7 +354,10 @@ def page_finalize():
 @bp.post("/page/export-final")
 @role_required("HRBP", "ADMIN")
 def page_export_final():
+    from flask import session
     cycle_id = int(request.form["cycle_id"])
     user = current_page_user()
-    create_cycle_export(cycle_id, "final", user["emp_id"], user["username"])
+    export = create_cycle_export(cycle_id, "final", user["emp_id"], user["username"])
+    session["export_download_url"] = export["download_url"]
+    session["export_file_name"] = export["file_name"]
     return redirect_with_cycle("/results", cycle_id)
