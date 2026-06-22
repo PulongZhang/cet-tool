@@ -402,7 +402,9 @@ def direct_reports_page():
     cycle_id = selected_cycle_id()
     user = current_page_user()
     records = list_direct_reports(cycle_id, user["emp_id"]) if cycle_id else []
-    return render_template("direct_reports.html", cycles=available_cycles(), cycle_id=cycle_id, records=records)
+    # 只有存在 DIRECT_DRAFT 状态的记录时才能提交
+    can_submit = any(r.get("status") == "DIRECT_DRAFT" for r in records)
+    return render_template("direct_reports.html", cycles=available_cycles(), cycle_id=cycle_id, records=records, can_submit=can_submit)
 
 
 @bp.get("/reviews/indirect/page")
@@ -416,12 +418,15 @@ def indirect_review_page():
         records = list_scope_records(cycle_id, "indirect_manager_id", user["emp_id"])
     else:
         records = []
+    # 只有存在 INDIRECT_PENDING 状态的记录时才能提交
+    can_submit = any(r.get("status") == "INDIRECT_PENDING" for r in records)
     return render_template(
         "indirect_review.html",
         cycles=available_cycles(),
         cycle_id=cycle_id,
         records=records,
         distribution=distribution_for_records(records),
+        can_submit=can_submit,
     )
 
 
@@ -458,12 +463,15 @@ def dept_review_page():
         records = list_scope_records(cycle_id, "dept_head_id", user["emp_id"])
     else:
         records = []
+    # 只有存在 DEPT_HEAD_PENDING 状态的记录时才能提交
+    can_submit = any(r.get("status") == "DEPT_HEAD_PENDING" for r in records)
     return render_template(
         "dept_review.html",
         cycles=available_cycles(),
         cycle_id=cycle_id,
         records=records,
         distribution=distribution_for_records(records),
+        can_submit=can_submit,
     )
 
 

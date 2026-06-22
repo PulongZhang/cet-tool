@@ -67,7 +67,7 @@
     </div>
     <form method="post" action="/page/direct-submit" style="margin-top:14px">
         <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
-        <button class="btn primary" type="submit">批量提交已保存评分</button>
+        <button class="btn primary" type="submit" {% if not can_submit %}disabled style="opacity:0.5;cursor:not-allowed;"{% endif %}>批量提交已保存评分</button>
     </form>
     <p class="prototype-note">全部下属保存为“直接上级评分草稿”后，批量提交会流转到间接上级审阅。</p>
 </section>

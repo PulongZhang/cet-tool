@@ -47,7 +47,7 @@
 {% if records %}
 <form method="post" action="/page/indirect-submit" style="margin-top:14px">
     <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
-    <button class="btn primary" type="submit">提交间接上级审阅</button>
+    <button class="btn primary" type="submit" {% if not can_submit %}disabled style="opacity:0.5;cursor:not-allowed;"{% endif %}>提交间接上级审阅</button>
 </form>
 <p class="muted">提交后，当前范围内待间接上级审阅的记录会流转到部门负责人确认。</p>
 {% endif %}
