@@ -562,15 +562,28 @@ def final_adjust_page(record_id: int):
     cycle_id = selected_cycle_id()
     record = get_record(record_id)
 
-    # 获取调整历史
-    adjustment_log = []
+    # 获取完整的调整历史（用于查看各环节调整过程）
+    adjustment_history = []
     if record:
-        adjustment_log = get_db().execute(
+        adjustment_history = get_db().execute(
             """
-            select adjusted_at, before_value, after_value, operator_id, operator_name, reason
+            select stage, adjustment_type, field_name, before_value, after_value, reason, operator_id, operator_name, adjusted_at
             from grade_adjustment_log
-            where record_id = ? and adjustment_type = 'FINAL_LEVEL'
-            order by adjusted_at desc
+            where record_id = ?
+            order by adjusted_at asc
+            """,
+            (record_id,),
+        ).fetchall()
+
+    # 获取审计日志
+    audit_logs = []
+    if record:
+        audit_logs = get_db().execute(
+            """
+            select action, before_snapshot, after_snapshot, operator_id, operator_name, created_at
+            from audit_log
+            where target_type = 'evaluation_record' and target_id = ?
+            order by created_at asc
             """,
             (record_id,),
         ).fetchall()
@@ -580,7 +593,12 @@ def final_adjust_page(record_id: int):
         cycles=available_cycles(),
         cycle_id=cycle_id,
         record=record or {},
-        adjustment_log=[dict(row) for row in adjustment_log],
+        adjustment_history=[dict(row) for row in adjustment_history],
+        audit_logs=[dict(row) for row in audit_logs],
+        ADJUSTMENT_STAGE_LABELS=ADJUSTMENT_STAGE_LABELS,
+        ADJUSTMENT_TYPE_LABELS=ADJUSTMENT_TYPE_LABELS,
+        FIELD_NAME_LABELS=FIELD_NAME_LABELS,
+        SUBJECTIVE_LEVELS=SUBJECTIVE_LEVELS,
     )
 
 

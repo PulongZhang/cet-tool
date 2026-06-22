@@ -1,22 +1,94 @@
 {% extends "base.html" %}
-{% block title %}最终等级微调 - 绩效考核评分工具{% endblock %}
-{% block page_title %}最终等级微调{% endblock %}
-{% block page_subtitle %}对员工最终等级进行调整，调整原因将记录到审计日志。{% endblock %}
+{% block title %}{{ record.emp_name }} - 计算结果与导出 - 绩效考核评分工具{% endblock %}
+{% block page_title %}{{ record.emp_name }} / {{ record.emp_id }}{% endblock %}
+{% block page_subtitle %}查看员工全流程操作记录，可进行等级微调。{% endblock %}
 {% block content %}
 <section class="card">
-    <h2>员工信息</h2>
-    <div class="demo-status">
-        <div class="status-item">工号<strong>{{ record.emp_id }}</strong></div>
-        <div class="status-item">姓名<strong>{{ record.emp_name }}</strong></div>
-        <div class="status-item">部门<strong>{{ record.dept_name }}</strong></div>
-        <div class="status-item">加权分<strong>{{ record.weighted_score or '-' }}</strong></div>
-        <div class="status-item">排名<strong>{{ record.rank_in_group or '-' }}/{{ record.rank_total or '-' }}</strong></div>
-    </div>
+    <h2>员工自评</h2>
+    <div class="hint">{{ record.self_summary or '员工尚未填写自评总结。' }}</div>
+    <table style="margin-top:12px">
+        <tbody>
+            <tr><th>产出和质量</th><td>{{ record.self_score_1 or '-' }}</td></tr>
+            <tr><th>主动承担</th><td>{{ record.self_score_2 or '-' }}</td></tr>
+            <tr><th>易用性和可维护</th><td>{{ record.self_score_3 or '-' }}</td></tr>
+        </tbody>
+    </table>
 </section>
 
 <section class="card">
-    <h2>当前等级</h2>
-    <table>
+    <h2>直接上级初评</h2>
+    <table style="margin-top:12px">
+        <tbody>
+            <tr><th>产出和质量</th><td>{{ record.manager_score_1 or '-' }}</td></tr>
+            <tr><th>主动承担</th><td>{{ record.manager_score_2 or '-' }}</td></tr>
+            <tr><th>易用性和可维护</th><td>{{ record.manager_score_3 or '-' }}</td></tr>
+            <tr><th>初评等级</th><td><span class="tag">{{ record.initial_total_grade or '-' }}</span></td></tr>
+            <tr><th>整体评语</th><td>{{ record.manager_comment or '-' }}</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2>间接上级审阅</h2>
+    {% set indirect_adj = [] %}
+    {% for adj in adjustment_history if adj.stage == 'INDIRECT' and adj.field_name == 'current_subjective_level' %}
+        {% set indirect_adj = [adj] %}
+    {% endfor %}
+    {% if indirect_adj %}
+    <table style="margin-top:12px">
+        <tbody>
+            <tr><th>审阅前等级</th><td>{{ indirect_adj[0].before_value or '-' }}</td></tr>
+            <tr><th>审阅后等级</th><td><span class="tag">{{ indirect_adj[0].after_value or '-' }}</span></td></tr>
+            <tr><th>调整原因</th><td>{{ indirect_adj[0].reason or '-' }}</td></tr>
+            <tr><th>调整人</th><td>{{ indirect_adj[0].operator_name or '-' }}</td></tr>
+            <tr><th>调整时间</th><td>{{ indirect_adj[0].adjusted_at or '-' }}</td></tr>
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">间接上级未进行审阅调整，保持直接上级初评等级 {{ record.initial_total_grade or '-' }}</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>各环节调整历史</h2>
+    {% if adjustment_history %}
+    <table style="margin-top:12px">
+        <thead>
+            <tr>
+                <th>环节</th>
+                <th>调整类型</th>
+                <th>字段</th>
+                <th>调整前</th>
+                <th>调整后</th>
+                <th>调整原因</th>
+                <th>操作人</th>
+                <th>操作时间</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for adj in adjustment_history %}
+            <tr>
+                <td>{{ ADJUSTMENT_STAGE_LABELS.get(adj.stage, adj.stage) or '-' }}</td>
+                <td>{{ ADJUSTMENT_TYPE_LABELS.get(adj.adjustment_type, adj.adjustment_type) or '-' }}</td>
+                <td>{{ FIELD_NAME_LABELS.get(adj.field_name, adj.field_name) or '-' }}</td>
+                <td>{{ adj.before_value or '-' }}</td>
+                <td><span class="tag">{{ adj.after_value or '-' }}</span></td>
+                <td>{{ adj.reason or '-' }}</td>
+                <td>{{ adj.operator_name or '-' }}</td>
+                <td>{{ adj.adjusted_at or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p class="muted" style="margin-top:8px">以上为该员工在考核各环节中的所有调整记录，按时间顺序排列。</p>
+    {% else %}
+    <p class="muted">暂无调整历史记录。</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>HR 最终等级微调</h2>
+    <table style="margin-top:12px">
         <thead><tr><th>系统建议等级</th><th>最终等级</th></tr></thead>
         <tbody>
             <tr>
@@ -25,11 +97,7 @@
             </tr>
         </tbody>
     </table>
-</section>
-
-<section class="card">
-    <h2>等级微调</h2>
-    <form method="post" action="/page/final-level" class="form-grid">
+    <form method="post" action="/page/final-level" class="form-grid" style="margin-top:12px">
         <input type="hidden" name="record_id" value="{{ record.id }}">
         <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
         <input type="hidden" name="return_to" value="/results">
@@ -48,28 +116,10 @@
         <textarea name="reason" placeholder="必填，写入审计和调整记录" required></textarea>
         <div></div>
         <button class="btn primary" type="submit">保存微调</button>
-        <div></div>
-        <a href="/results?cycle_id={{ cycle_id }}" class="btn ghost">返回结果表</a>
     </form>
 </section>
 
-{% if adjustment_log %}
-<section class="card">
-    <h2>调整历史</h2>
-    <table>
-        <thead><tr><th>调整时间</th><th>调整前</th><th>调整后</th><th>操作人</th><th>原因</th></tr></thead>
-        <tbody>
-            {% for log in adjustment_log %}
-            <tr>
-                <td>{{ log.created_at }}</td>
-                <td>{{ log.before_value }}</td>
-                <td>{{ log.after_value }}</td>
-                <td>{{ log.operator_name }} ({{ log.operator_id }})</td>
-                <td>{{ log.reason }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</section>
-{% endif %}
+<div style="margin-top:14px">
+    <a href="/results?cycle_id={{ cycle_id }}" class="btn">返回结果表</a>
+</div>
 {% endblock %}
