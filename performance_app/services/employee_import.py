@@ -248,7 +248,9 @@ def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operat
     roles_by_emp_id = role_map_for_rows(valid_rows)
     for row in valid_rows:
         upsert_snapshot(cycle_id, row, row["group_code"])
-        ensure_evaluation_record(cycle_id, row["emp_id"])
+        # 对于"不参与计算序列"的人员，不创建 evaluation_record（无需自评）
+        if row["group_code"] != "EXCLUDED":
+            ensure_evaluation_record(cycle_id, row["emp_id"])
         ensure_account(
             row["emp_id"],
             row["emp_id"],

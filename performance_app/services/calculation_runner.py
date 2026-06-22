@@ -67,6 +67,7 @@ def calculation_candidates(cycle_id: int) -> list[dict]:
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and r.status = 'HR_PENDING'
+          and s.group_code != 'EXCLUDED'
         order by r.emp_id
         """,
         (cycle_id,),
@@ -132,6 +133,7 @@ def list_cycle_results(cycle_id: int) -> list[dict]:
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         left join grade_adjustment_log gal on gal.record_id = r.id and gal.adjustment_type = 'FINAL_LEVEL'
         where r.cycle_id = ? and r.weighted_score is not null
+          and s.group_code != 'EXCLUDED'
         order by s.group_code, r.rank_in_group, r.emp_id
         """,
         (cycle_id,),

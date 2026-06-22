@@ -81,7 +81,7 @@ WORKFLOW_STAGES = (
 NAV_ITEMS = [
     {"title": "首页仪表盘", "href": "/", "roles": None},
     {"title": "周期管理", "href": "/cycles/page", "roles": {"HRBP", "ADMIN"}},
-    {"title": "我的自评", "href": "/self-review", "roles": {"EMPLOYEE"}},
+    {"title": "我的自评", "href": "/self-review", "roles": {"EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD", "HRBP", "ADMIN"}},
     {"title": "直接上级评分", "href": "/direct-reports", "roles": {"DIRECT_MANAGER"}},
     {"title": "间接上级审阅", "href": "/reviews/indirect/page", "roles": {"INDIRECT_MANAGER"}},
     {"title": "部门负责人确认", "href": "/reviews/dept-head/page", "roles": {"DEPT_HEAD"}},
@@ -148,6 +148,7 @@ def workflow_progress(cycle_id: int | None, user: dict | None = None) -> dict:
             from evaluation_record r
             join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
             where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
+              and s.group_code != 'EXCLUDED'
             group by r.status
             """,
             (cycle_id, user["emp_id"], user["emp_id"]),
@@ -159,18 +160,20 @@ def workflow_progress(cycle_id: int | None, user: dict | None = None) -> dict:
             from evaluation_record r
             join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
             where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
+              and s.group_code != 'EXCLUDED'
             """,
             (cycle_id, user["emp_id"], user["emp_id"]),
         ).fetchone()
         total_count = total_row["count"] if total_row else 0
     else:
-        # 其他角色查看全局统计（排除部门负责人）
+        # 其他角色查看全局统计（排除部门负责人和不参与计算序列）
         rows = get_db().execute(
             """
             select r.status, count(*) as count
             from evaluation_record r
             join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
             where r.cycle_id = ?
+              and s.group_code != 'EXCLUDED'
               and not exists (
                   select 1 from user_role ur
                   join user_account ua on ua.id = ur.user_id
@@ -180,13 +183,14 @@ def workflow_progress(cycle_id: int | None, user: dict | None = None) -> dict:
             """,
             (cycle_id,),
         ).fetchall()
-        # 获取全部员工数（排除部门负责人）
+        # 获取全部员工数（排除部门负责人和不参与计算序列）
         total_row = get_db().execute(
             """
             select count(*) as count
             from evaluation_record r
             join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
             where r.cycle_id = ?
+              and s.group_code != 'EXCLUDED'
               and not exists (
                   select 1 from user_role ur
                   join user_account ua on ua.id = ur.user_id
@@ -388,12 +392,21 @@ def cycle_management_page():
 
 
 @bp.get("/self-review")
-@role_required("EMPLOYEE")
+@role_required("EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD", "HRBP", "ADMIN")
 def self_review_page():
+    from performance_app.domain.constants import EMPLOYEE_LABELS, MANAGEMENT_LABELS
+
     cycle_id = selected_cycle_id()
     user = current_page_user()
     record = get_my_record(cycle_id, user["emp_id"]) if cycle_id else None
-    return render_template("self_review.html", cycles=available_cycles(), cycle_id=cycle_id, record=record)
+
+    # 根据序列获取评价维度标签
+    if record and record.get("sequence") == "管理序列":
+        subjective_labels = MANAGEMENT_LABELS
+    else:
+        subjective_labels = EMPLOYEE_LABELS
+
+    return render_template("self_review.html", cycles=available_cycles(), cycle_id=cycle_id, record=record, subjective_labels=subjective_labels)
 
 
 @bp.get("/direct-reports")
@@ -435,20 +448,23 @@ def indirect_review_page():
 def indirect_review_detail(record_id: int):
     cycle_id = selected_cycle_id()
     user = current_page_user()
-    record = get_my_record(cycle_id, user["emp_id"]) if cycle_id else None
     # 获取要调整的记录详情
     from performance_app.repositories.records import get_record
+
     detail_record = get_record(record_id)
     if not detail_record or detail_record.get("indirect_manager_id") != user["emp_id"]:
         return "无权访问该记录", 403
-    if detail_record.get("status") != "INDIRECT_PENDING":
-        return "该记录已提交，无法再进行操作", 403
+
+    # 判断是否可编辑（只有 INDIRECT_PENDING 状态可以编辑）
+    can_edit = detail_record.get("status") == "INDIRECT_PENDING"
+
     return render_template(
         "indirect_review_detail.html",
         cycles=available_cycles(),
         cycle_id=cycle_id,
         record=detail_record,
         subjective_levels=SUBJECTIVE_LEVELS,
+        can_edit=can_edit,
     )
 
 

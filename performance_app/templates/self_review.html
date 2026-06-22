@@ -18,9 +18,9 @@
         <input type="hidden" name="record_id" value="{{ record.id }}">
         <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
         <div class="label">工作总结</div><textarea name="self_summary" placeholder="填写本季度主要工作内容、成果、亮点">{{ record.self_summary or '' }}</textarea>
-        <div class="label">产出和质量</div><select name="self_score_1">{% for level in subjective_levels %}<option{% if level == (record.self_score_1 or 'A') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
-        <div class="label">主动承担</div><select name="self_score_2">{% for level in subjective_levels %}<option{% if level == (record.self_score_2 or 'B+') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
-        <div class="label">易用性和可维护</div><select name="self_score_3">{% for level in subjective_levels %}<option{% if level == (record.self_score_3 or 'A') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
+        <div class="label">{{ subjective_labels.label_1 }}</div><select name="self_score_1">{% for level in subjective_levels %}<option{% if level == (record.self_score_1 or 'A') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
+        <div class="label">{{ subjective_labels.label_2 }}</div><select name="self_score_2">{% for level in subjective_levels %}<option{% if level == (record.self_score_2 or 'B+') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
+        <div class="label">{{ subjective_labels.label_3 }}</div><select name="self_score_3">{% for level in subjective_levels %}<option{% if level == (record.self_score_3 or 'A') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
         <div></div>
         <div class="btnrow">
             <button class="btn" type="submit">保存草稿</button>
@@ -31,9 +31,9 @@
     <div class="hint">自评已提交，等待直接上级评分。</div>
     <div class="form-grid">
         <div class="label">工作总结</div><div>{{ record.self_summary or '-' }}</div>
-        <div class="label">产出和质量</div><div>{{ record.self_score_1 or '-' }}</div>
-        <div class="label">主动承担</div><div>{{ record.self_score_2 or '-' }}</div>
-        <div class="label">易用性和可维护</div><div>{{ record.self_score_3 or '-' }}</div>
+        <div class="label">{{ subjective_labels.label_1 }}</div><div>{{ record.self_score_1 or '-' }}</div>
+        <div class="label">{{ subjective_labels.label_2 }}</div><div>{{ record.self_score_2 or '-' }}</div>
+        <div class="label">{{ subjective_labels.label_3 }}</div><div>{{ record.self_score_3 or '-' }}</div>
     </div>
     {% endif %}
     <p class="prototype-note">API 参考：<code>/records/my</code>，页面动作会根据当前状态开放。</p>

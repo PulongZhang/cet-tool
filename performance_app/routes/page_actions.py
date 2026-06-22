@@ -139,7 +139,7 @@ def page_cycle_delete():
 
 
 @bp.post("/page/self-draft")
-@role_required("EMPLOYEE")
+@role_required("EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD", "HRBP", "ADMIN")
 def page_self_draft():
     record_id = int(request.form["record_id"])
     cycle_id = request.form.get("cycle_id")
@@ -151,7 +151,7 @@ def page_self_draft():
 
 
 @bp.post("/page/self-submit")
-@role_required("EMPLOYEE")
+@role_required("EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD", "HRBP", "ADMIN")
 def page_self_submit():
     record_id = int(request.form["record_id"])
     cycle_id = request.form.get("cycle_id")
