@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ record.emp_name }} - 间接上级审阅 - 绩效考核评分工具{% endblock %}
 {% block page_title %}{{ record.emp_name }} / {{ record.emp_id }}{% endblock %}
-{% block page_subtitle %}间接上级审阅详情，可调整建议等级后返回列表。{% endblock %}
+{% block page_subtitle %}间接上级审阅详情，可调整初评等级后返回列表。{% endblock %}
 {% block content %}
 <section class="card">
     <h2>员工自评</h2>
@@ -34,8 +34,8 @@
         <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
         <input type="hidden" name="return_to" value="/reviews/indirect/page">
         <input type="hidden" name="field_name" value="current_subjective_level">
-        <div class="label">当前建议等级</div><div><strong>{{ record.current_subjective_level or '-' }}</strong></div>
-        <div class="label">调整建议等级</div>
+        <div class="label">当前初评等级</div><div><strong>{{ record.current_subjective_level or '-' }}</strong></div>
+        <div class="label">调整初评等级</div>
         <select name="after_value">
             {% for level in subjective_levels %}
             <option{% if level == (record.current_subjective_level or 'B+') %} selected{% endif %}>{{ level }}</option>

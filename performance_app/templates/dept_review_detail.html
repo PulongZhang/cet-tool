@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ record.emp_name }} - 部门负责人确认 - 绩效考核评分工具{% endblock %}
 {% block page_title %}{{ record.emp_name }} / {{ record.emp_id }}{% endblock %}
-{% block page_subtitle %}部门负责人确认详情，查看各环节调整过程并可确认或调整建议等级。{% endblock %}
+{% block page_subtitle %}部门负责人确认详情，查看各环节调整过程并可确认或调整初评等级。{% endblock %}
 {% block content %}
 <section class="card">
     <h2>员工自评</h2>
@@ -83,14 +83,14 @@
 </section>
 
 <section class="card">
-    <h2>部门负责人最终确认 / 调整</h2>
+    <h2>部门负责人确认/调整</h2>
     {% if can_edit %}
     <form method="post" action="/page/record-adjustment" class="form-grid">
         <input type="hidden" name="record_id" value="{{ record.id }}">
         <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
         <input type="hidden" name="return_to" value="/reviews/dept-head/page">
         <input type="hidden" name="field_name" value="current_subjective_level">
-        <div class="label">当前建议等级</div><div><strong>{% if record.adjustment %}{{ record.adjustment.after_value }}{% else %}{{ record.initial_total_grade or '-' }}{% endif %}</strong></div>
+        <div class="label">当前初评等级</div><div><strong>{% if record.adjustment %}{{ record.adjustment.after_value }}{% else %}{{ record.initial_total_grade or '-' }}{% endif %}</strong></div>
         <div class="label">确认等级</div>
         <select name="after_value">
             {% for level in subjective_levels %}
@@ -104,8 +104,8 @@
     <table style="margin-top:12px">
         <tbody>
             <tr><th>当前状态</th><td>{{ status_label(record.status) }}</td></tr>
-            <tr><th>建议等级</th><td><span class="tag">{% if record.adjustment %}{{ record.adjustment.after_value }}{% else %}{{ record.initial_total_grade or '-' }}{% endif %}</span></td></tr>
-            <tr><th>最终确认等级</th><td><span class="tag">{{ record.current_subjective_level or '-' }}</span></td></tr>
+            <tr><th>初评等级</th><td><span class="tag">{% if record.adjustment %}{{ record.adjustment.after_value }}{% else %}{{ record.initial_total_grade or '-' }}{% endif %}</span></td></tr>
+            <tr><th>调整确认等级</th><td><span class="tag">{{ record.current_subjective_level or '-' }}</span></td></tr>
         </tbody>
     </table>
     <p class="muted" style="margin-top:8px">该记录状态为 <strong>{{ record.status }}</strong>，{{ '已完成部门负责人确认' if record.status == 'HR_CALC_PENDING' or record.status == 'COMPLETED' else '尚未流转到部门负责人确认环节' }}。如需进行操作，请在状态变为"待部门负责人确认"后访问。</p>
