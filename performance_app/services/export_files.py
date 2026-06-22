@@ -8,8 +8,9 @@ from openpyxl import Workbook
 from performance_app.db import get_db
 from performance_app.repositories.audit import write_audit_log
 from performance_app.services.calculation_runner import list_cycle_results
+from performance_app.routes.pages import STATUS_LABELS
 
-RESULT_HEADERS = ("工号", "姓名", "部门", "分组", "加权分", "组内排名", "组内人数", "系统建议等级", "最终等级")
+RESULT_HEADERS = ("工号", "姓名", "四级部门", "职级", "加权分", "排序", "部门负责人初评结果", "加权计算结果", "最终微调结果", "状态")
 
 
 def create_cycle_export(cycle_id: int, export_type: str, operator_id: str, operator_name: str) -> dict:
@@ -31,13 +32,14 @@ def create_cycle_export(cycle_id: int, export_type: str, operator_id: str, opera
             (
                 record["emp_id"],
                 record["emp_name"],
-                record["dept_name"],
-                record["group_code"],
-                record["weighted_score"],
-                record["rank_in_group"],
-                record["rank_total"],
-                record["suggested_level"],
-                record["final_level"],
+                record.get("dept_level_4") or record.get("dept_name") or "-",
+                record.get("level") or "-",
+                record.get("weighted_score") or "-",
+                record.get("rank_in_group") or "-",
+                record.get("current_subjective_level") or "-",
+                record.get("suggested_level") or "-",
+                record.get("final_level") or "-",
+                STATUS_LABELS.get(record.get("status"), record.get("status") or "-"),
             )
         )
     workbook.save(file_path)

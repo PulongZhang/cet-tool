@@ -123,6 +123,7 @@ def list_cycle_results(cycle_id: int) -> list[dict]:
             r.*,
             s.emp_name,
             s.dept_name,
+            s.dept_level_4,
             s.group_code,
             s.level,
             case when gal.id is not null then 1 else 0 end as has_final_adjustment,
