@@ -32,6 +32,29 @@ ROLE_LABELS = {
 
 SUBJECTIVE_LEVELS = ["A+", "A", "B+", "B", "B-", "C", "D"]
 
+# 调整日志中 stage 字段的中文映射
+ADJUSTMENT_STAGE_LABELS = {
+    "INDIRECT": "间接上级审阅",
+    "DEPT_HEAD": "部门负责人确认",
+    "HR": "HR 最终调整",
+}
+
+# 调整日志中 adjustment_type 字段的中文映射
+ADJUSTMENT_TYPE_LABELS = {
+    "SUGGESTED_LEVEL": "建议等级调整",
+    "SUBJECTIVE_DIMENSION": "主观维度调整",
+    "FINAL_LEVEL": "最终等级调整",
+}
+
+# 调整日志中 field_name 字段的中文映射
+FIELD_NAME_LABELS = {
+    "current_subjective_level": "建议等级",
+    "final_subjective_grade_1": "最终主观等级-产出和质量",
+    "final_subjective_grade_2": "最终主观等级-主动承担",
+    "final_subjective_grade_3": "最终主观等级-易用性和可维护",
+    "final_level": "最终等级",
+}
+
 STATUS_LABELS = {
     "SELF_PENDING": "待员工自评",
     "SELF_DRAFT": "自评草稿",
@@ -489,6 +512,9 @@ def dept_review_detail(record_id: int):
         adjustment_history=[dict(row) for row in adjustment_history],
         audit_logs=[dict(row) for row in audit_logs],
         can_edit=can_edit,
+        ADJUSTMENT_STAGE_LABELS=ADJUSTMENT_STAGE_LABELS,
+        ADJUSTMENT_TYPE_LABELS=ADJUSTMENT_TYPE_LABELS,
+        FIELD_NAME_LABELS=FIELD_NAME_LABELS,
     )
 
 

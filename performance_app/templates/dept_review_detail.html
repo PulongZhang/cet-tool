@@ -64,9 +64,9 @@
         <tbody>
             {% for adj in adjustment_history %}
             <tr>
-                <td>{{ adj.stage or '-' }}</td>
-                <td>{{ adj.adjustment_type or '-' }}</td>
-                <td>{{ adj.field_name or '-' }}</td>
+                <td>{{ ADJUSTMENT_STAGE_LABELS.get(adj.stage, adj.stage) or '-' }}</td>
+                <td>{{ ADJUSTMENT_TYPE_LABELS.get(adj.adjustment_type, adj.adjustment_type) or '-' }}</td>
+                <td>{{ FIELD_NAME_LABELS.get(adj.field_name, adj.field_name) or '-' }}</td>
                 <td>{{ adj.before_value or '-' }}</td>
                 <td><span class="tag">{{ adj.after_value or '-' }}</span></td>
                 <td>{{ adj.reason or '-' }}</td>
