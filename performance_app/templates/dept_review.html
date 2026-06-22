@@ -20,7 +20,7 @@
 <section class="card">
     <h2>部门负责人确认总览</h2>
     <table>
-        <thead><tr><th>工号</th><th>姓名</th><th>部门</th><th>职级</th><th>产出和质量(自/上)</th><th>主动承担(自/上)</th><th>易用性和可维护(自/上)</th><th>直接上级初评</th><th>间接上级审阅</th><th>部门负责人调整确认</th><th>状态</th></tr></thead>
+        <thead><tr><th>工号</th><th>姓名</th><th>部门</th><th>职级</th><th>直接上级初评</th><th>间接上级审阅</th><th>部门负责人调整确认</th><th>状态</th></tr></thead>
         <tbody>
             {% for record in records %}
             <tr>
@@ -28,20 +28,17 @@
                 <td><a href="/reviews/dept-head/{{ record.id }}?cycle_id={{ cycle_id }}">{{ record.emp_name }}</a></td>
                 <td>{{ record.dept_level_4 or record.dept_name or '-' }}</td>
                 <td>{{ record.level }}</td>
-                <td>{{ record.self_score_1 or '-' }} / {{ record.manager_score_1 or '-' }}</td>
-                <td>{{ record.self_score_2 or '-' }} / {{ record.manager_score_2 or '-' }}</td>
-                <td>{{ record.self_score_3 or '-' }} / {{ record.manager_score_3 or '-' }}</td>
                 <td>{{ record.initial_total_grade or '-' }}</td>
                 <td>{% if record.adjustment %}{{ record.adjustment.after_value or '-' }}{% else %}{{ record.initial_total_grade or '-' }}{% endif %}</td>
                 <td>{{ record.current_subjective_level or '-' }}</td>
                 <td>{{ status_label(record.status) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="11" class="muted">暂无待部门负责人确认记录。请先完成间接上级审阅提交。</td></tr>
+            <tr><td colspan="8" class="muted">暂无待部门负责人确认记录。请先完成间接上级审阅提交。</td></tr>
             {% endfor %}
         </tbody>
     </table>
-    <p class="muted">点击员工姓名可进入详情页查看各环节调整过程并进行确认调整。每列格式：员工自评 / 上级评分</p>
+    <p class="muted">点击员工姓名可进入详情页查看各环节调整过程并进行确认调整。</p>
 </section>
 
 {% if records %}

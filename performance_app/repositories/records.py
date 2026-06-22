@@ -12,7 +12,7 @@ def row_to_record(row: Row) -> dict:
 def get_record(record_id: int) -> dict | None:
     row = get_db().execute(
         """
-        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level, s.sequence
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.id = ?
@@ -26,7 +26,7 @@ def get_my_record(cycle_id: int, emp_id: str) -> dict | None:
     row = get_db().execute(
         """
         select r.*, s.emp_name, s.dept_name, s.dept_level_1, s.dept_level_2, s.dept_level_3, s.dept_level_4, s.post,
-               s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+               s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level, s.sequence
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and r.emp_id = ?
@@ -39,7 +39,7 @@ def get_my_record(cycle_id: int, emp_id: str) -> dict | None:
 def list_direct_reports(cycle_id: int, manager_emp_id: str) -> list[dict]:
     rows = get_db().execute(
         """
-        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level, s.sequence
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
@@ -100,7 +100,7 @@ def update_manager_score(record_id: int, payload: dict, status: str) -> dict:
 def list_review_records(cycle_id: int, scope_field: str, emp_id: str, status: str) -> list[dict]:
     rows = get_db().execute(
         f"""
-        select r.*, s.emp_name, s.dept_name, s.dept_level_4, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+        select r.*, s.emp_name, s.dept_name, s.dept_level_4, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level, s.sequence
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and s.{scope_field} = ? and r.emp_id != ? and r.status = ?
@@ -160,11 +160,11 @@ def update_record_field(record_id: int, field_name: str, after_value: str) -> di
 def list_scope_records(cycle_id: int, scope_field: str, emp_id: str) -> list[dict]:
     rows = get_db().execute(
         f"""
-        select r.*, s.emp_name, s.dept_name, s.dept_level_4, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+        select r.*, s.emp_name, s.dept_name, s.dept_level_4, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level, s.sequence
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and s.{scope_field} = ? and r.emp_id != ?
-        order by r.emp_id
+        order by s.dept_level_4, s.level, r.emp_id
         """,
         (cycle_id, emp_id, emp_id),
     ).fetchall()
@@ -268,6 +268,7 @@ def list_records_by_statuses(cycle_id: int, statuses: list[str]) -> list[dict]:
         left join cycle_employee_snapshot im on im.cycle_id = s.cycle_id and im.emp_id = s.indirect_manager_id
         left join cycle_employee_snapshot dh on dh.cycle_id = s.cycle_id and dh.emp_id = s.dept_head_id
         where r.cycle_id = ? and r.status in ({placeholders})
+          and s.group_code != 'EXCLUDED'
         order by r.emp_id
         """,
         (cycle_id, *statuses),
