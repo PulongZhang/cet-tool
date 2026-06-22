@@ -50,6 +50,27 @@
 </section>
 
 <section class="card">
+    <h2>部门负责人确认</h2>
+    {% set dept_adj = [] %}
+    {% for adj in adjustment_history if adj.stage == 'DEPT_HEAD' and adj.field_name == 'current_subjective_level' %}
+        {% set dept_adj = [adj] %}
+    {% endfor %}
+    {% if dept_adj %}
+    <table style="margin-top:12px">
+        <tbody>
+            <tr><th>确认前等级</th><td>{{ dept_adj[0].before_value or '-' }}</td></tr>
+            <tr><th>确认后等级</th><td><span class="tag">{{ dept_adj[0].after_value or '-' }}</span></td></tr>
+            <tr><th>确认原因</th><td>{{ dept_adj[0].reason or '-' }}</td></tr>
+            <tr><th>确认人</th><td>{{ dept_adj[0].operator_name or '-' }}</td></tr>
+            <tr><th>确认时间</th><td>{{ dept_adj[0].adjusted_at or '-' }}</td></tr>
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">部门负责人未进行调整确认，保持间接上级审阅等级 {% if indirect_adj %}{{ indirect_adj[0].after_value }}{% else %}{{ record.initial_total_grade or '-' }}{% endif %}</p>
+    {% endif %}
+</section>
+
+<section class="card">
     <h2>各环节调整历史</h2>
     {% if adjustment_history %}
     <table style="margin-top:12px">
