@@ -81,7 +81,7 @@ WORKFLOW_STAGES = (
 NAV_ITEMS = [
     {"title": "首页仪表盘", "href": "/", "roles": None},
     {"title": "周期管理", "href": "/cycles/page", "roles": {"HRBP", "ADMIN"}},
-    {"title": "我的自评", "href": "/self-review", "roles": {"EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD", "HRBP", "ADMIN"}},
+    {"title": "我的自评", "href": "/self-review", "roles": {"EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD"}},
     {"title": "直接上级评分", "href": "/direct-reports", "roles": {"DIRECT_MANAGER"}},
     {"title": "间接上级审阅", "href": "/reviews/indirect/page", "roles": {"INDIRECT_MANAGER"}},
     {"title": "部门负责人确认", "href": "/reviews/dept-head/page", "roles": {"DEPT_HEAD"}},
@@ -392,7 +392,7 @@ def cycle_management_page():
 
 
 @bp.get("/self-review")
-@role_required("EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD", "HRBP", "ADMIN")
+@role_required("EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD")
 def self_review_page():
     from performance_app.domain.constants import EMPLOYEE_LABELS, MANAGEMENT_LABELS
 
