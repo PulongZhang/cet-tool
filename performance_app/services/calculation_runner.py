@@ -119,9 +119,17 @@ def persist_calculation_result(item: dict) -> None:
 def list_cycle_results(cycle_id: int) -> list[dict]:
     rows = get_db().execute(
         """
-        select r.*, s.emp_name, s.dept_name, s.group_code, s.level
+        select
+            r.*,
+            s.emp_name,
+            s.dept_name,
+            s.group_code,
+            s.level,
+            case when gal.id is not null then 1 else 0 end as has_final_adjustment,
+            gal.after_value as adjusted_final_level
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+        left join grade_adjustment_log gal on gal.record_id = r.id and gal.adjustment_type = 'FINAL_LEVEL'
         where r.cycle_id = ? and r.weighted_score is not null
         order by s.group_code, r.rank_in_group, r.emp_id
         """,

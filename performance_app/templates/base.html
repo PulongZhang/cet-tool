@@ -30,14 +30,23 @@
                     <p>{% block page_subtitle %}真实页面：登录态、角色权限、数据和操作均由后端控制。{% endblock %}</p>
                 </div>
                 <div class="userbox">
-                    <div><strong>当前用户：{{ current_user.username }}</strong></div>
-                    <div class="muted">工号：{{ current_user.emp_id }}</div>
+                    <div><strong>{{ current_user_name or current_user.username if current_user else '' }}</strong></div>
+                    <div class="muted">工号：{{ current_user.emp_id if current_user else '' }}</div>
                     <div class="tagrow">
                         {% for role in current_roles %}<span class="tag">{{ role }}</span>{% endfor %}
                     </div>
                 </div>
             </div>
             {% block status_bar %}{% endblock %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
             {% block content %}{% endblock %}
         </main>
     </div>

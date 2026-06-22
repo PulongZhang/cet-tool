@@ -205,11 +205,20 @@ def page_record_adjustment():
     record = get_record(record_id)
     allowed = False
     if record is not None:
-        allowed = (
-            record["status"] == "INDIRECT_PENDING" and record["indirect_manager_id"] == user["emp_id"]
-        ) or (
-            record["status"] == "DEPT_HEAD_PENDING" and record["dept_head_id"] == user["emp_id"]
-        )
+        # 根据 return_to 判断用户来自哪个界面，进行相应的权限检查
+        if "/reviews/indirect" in return_to:
+            # 用户来自间接上级界面，只允许操作 INDIRECT_PENDING 状态的记录
+            allowed = record["status"] == "INDIRECT_PENDING" and record["indirect_manager_id"] == user["emp_id"]
+        elif "/reviews/dept-head" in return_to:
+            # 用户来自部门负责人界面，只允许操作 DEPT_HEAD_PENDING 状态的记录
+            allowed = record["status"] == "DEPT_HEAD_PENDING" and record["dept_head_id"] == user["emp_id"]
+        else:
+            # 默认行为：保持原有逻辑
+            allowed = (
+                record["status"] == "INDIRECT_PENDING" and record["indirect_manager_id"] == user["emp_id"]
+            ) or (
+                record["status"] == "DEPT_HEAD_PENDING" and record["dept_head_id"] == user["emp_id"]
+            )
     if allowed and field_name and after_value and reason:
         before_value = record.get(field_name)
         try:
@@ -284,14 +293,30 @@ def page_dept_submit():
 @bp.post("/page/objective-upload")
 @role_required("HRBP", "ADMIN")
 def page_objective_upload():
+    from flask import flash
     cycle_id = form_cycle_id()
     if cycle_id is None:
         return redirect_with_cycle("/objective/import/page", None)
     uploaded_file = request.files.get("file")
     if uploaded_file is not None and uploaded_file.filename:
-        rows = parse_objective_workbook(uploaded_file)
-        user = current_page_user()
-        import_objective_rows(cycle_id, uploaded_file.filename or "objective.xlsx", rows, user["emp_id"], user["username"])
+        try:
+            rows = parse_objective_workbook(uploaded_file)
+            user = current_page_user()
+            result = import_objective_rows(cycle_id, uploaded_file.filename or "objective.xlsx", rows, user["emp_id"], user["username"])
+            summary = result.get("summary", {})
+            total = summary.get("total_count", 0)
+            success = summary.get("success_count", 0)
+            failed = summary.get("failed_count", 0)
+            if failed > 0:
+                flash(f"上传完成：共 {total} 条，成功 {success} 条，失败 {failed} 条", "warning")
+            else:
+                flash(f"上传成功！共导入 {success} 条数据", "success")
+        except ValueError as e:
+            flash(f"上传失败: {str(e)}", "error")
+        except Exception as e:
+            flash(f"上传失败: {str(e)}", "error")
+    else:
+        flash("请选择要上传的文件", "error")
     return redirect_with_cycle("/objective/import/page", cycle_id)
 
 

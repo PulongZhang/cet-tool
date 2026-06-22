@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}最终等级微调 - 绩效考核评分工具{% endblock %}
+{% block page_title %}最终等级微调{% endblock %}
+{% block page_subtitle %}对员工最终等级进行调整，调整原因将记录到审计日志。{% endblock %}
+{% block content %}
+<section class="card">
+    <h2>员工信息</h2>
+    <div class="demo-status">
+        <div class="status-item">工号<strong>{{ record.emp_id }}</strong></div>
+        <div class="status-item">姓名<strong>{{ record.emp_name }}</strong></div>
+        <div class="status-item">部门<strong>{{ record.dept_name }}</strong></div>
+        <div class="status-item">加权分<strong>{{ record.weighted_score or '-' }}</strong></div>
+        <div class="status-item">排名<strong>{{ record.rank_in_group or '-' }}/{{ record.rank_total or '-' }}</strong></div>
+    </div>
+</section>
+
+<section class="card">
+    <h2>当前等级</h2>
+    <table>
+        <thead><tr><th>系统建议等级</th><th>最终等级</th></tr></thead>
+        <tbody>
+            <tr>
+                <td><span class="tag">{{ record.suggested_level or '-' }}</span></td>
+                <td><span class="tag">{{ record.final_level or '-' }}</span></td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2>等级微调</h2>
+    <form method="post" action="/page/final-level" class="form-grid">
+        <input type="hidden" name="record_id" value="{{ record.id }}">
+        <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
+        <input type="hidden" name="return_to" value="/results">
+        <div class="label">调整后等级</div>
+        <select name="final_level">
+            <option value="">请选择</option>
+            <option value="A+" {% if record.final_level == 'A+' %}selected{% endif %}>A+</option>
+            <option value="A" {% if record.final_level == 'A' %}selected{% endif %}>A</option>
+            <option value="B+" {% if record.final_level == 'B+' %}selected{% endif %}>B+</option>
+            <option value="B" {% if record.final_level == 'B' %}selected{% endif %}>B</option>
+            <option value="B-" {% if record.final_level == 'B-' %}selected{% endif %}>B-</option>
+            <option value="C" {% if record.final_level == 'C' %}selected{% endif %}>C</option>
+            <option value="D" {% if record.final_level == 'D' %}selected{% endif %}>D</option>
+        </select>
+        <div class="label">调整原因</div>
+        <textarea name="reason" placeholder="必填，写入审计和调整记录" required></textarea>
+        <div></div>
+        <button class="btn primary" type="submit">保存微调</button>
+        <div></div>
+        <a href="/results?cycle_id={{ cycle_id }}" class="btn ghost">返回结果表</a>
+    </form>
+</section>
+
+{% if adjustment_log %}
+<section class="card">
+    <h2>调整历史</h2>
+    <table>
+        <thead><tr><th>调整时间</th><th>调整前</th><th>调整后</th><th>操作人</th><th>原因</th></tr></thead>
+        <tbody>
+            {% for log in adjustment_log %}
+            <tr>
+                <td>{{ log.created_at }}</td>
+                <td>{{ log.before_value }}</td>
+                <td>{{ log.after_value }}</td>
+                <td>{{ log.operator_name }} ({{ log.operator_id }})</td>
+                <td>{{ log.reason }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+{% endblock %}

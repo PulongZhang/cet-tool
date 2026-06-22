@@ -100,7 +100,7 @@ def update_manager_score(record_id: int, payload: dict, status: str) -> dict:
 def list_review_records(cycle_id: int, scope_field: str, emp_id: str, status: str) -> list[dict]:
     rows = get_db().execute(
         f"""
-        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+        select r.*, s.emp_name, s.dept_name, s.dept_level_4, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and s.{scope_field} = ? and r.emp_id != ? and r.status = ?
@@ -108,7 +108,28 @@ def list_review_records(cycle_id: int, scope_field: str, emp_id: str, status: st
         """,
         (cycle_id, emp_id, emp_id, status),
     ).fetchall()
-    return [row_to_record(row) for row in rows]
+    records = [row_to_record(row) for row in rows]
+
+    # 获取每个记录的最新调整记录（建议等级调整）
+    for record in records:
+        adjustment = get_db().execute(
+            """
+            select before_value, after_value, reason, operator_name
+            from grade_adjustment_log
+            where record_id = ? and field_name = 'current_subjective_level'
+            order by adjusted_at desc limit 1
+            """,
+            (record["id"],),
+        ).fetchone()
+        if adjustment:
+            record["adjustment"] = {
+                "before_value": adjustment["before_value"],
+                "after_value": adjustment["after_value"],
+                "reason": adjustment["reason"],
+                "operator_name": adjustment["operator_name"],
+            }
+
+    return records
 
 
 def distribution_for_records(records: list[dict]) -> dict[str, int]:
@@ -139,7 +160,7 @@ def update_record_field(record_id: int, field_name: str, after_value: str) -> di
 def list_scope_records(cycle_id: int, scope_field: str, emp_id: str) -> list[dict]:
     rows = get_db().execute(
         f"""
-        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+        select r.*, s.emp_name, s.dept_name, s.dept_level_4, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and s.{scope_field} = ? and r.emp_id != ?
@@ -147,7 +168,28 @@ def list_scope_records(cycle_id: int, scope_field: str, emp_id: str) -> list[dic
         """,
         (cycle_id, emp_id, emp_id),
     ).fetchall()
-    return [row_to_record(row) for row in rows]
+    records = [row_to_record(row) for row in rows]
+
+    # 获取每个记录的最新调整记录（建议等级调整）
+    for record in records:
+        adjustment = get_db().execute(
+            """
+            select before_value, after_value, reason, operator_name
+            from grade_adjustment_log
+            where record_id = ? and field_name = 'current_subjective_level'
+            order by adjusted_at desc limit 1
+            """,
+            (record["id"],),
+        ).fetchone()
+        if adjustment:
+            record["adjustment"] = {
+                "before_value": adjustment["before_value"],
+                "after_value": adjustment["after_value"],
+                "reason": adjustment["reason"],
+                "operator_name": adjustment["operator_name"],
+            }
+
+    return records
 
 
 def bulk_update_status(cycle_id: int, scope_field: str, emp_id: str, from_status: str, to_status: str) -> int:
@@ -168,7 +210,23 @@ def bulk_update_status(cycle_id: int, scope_field: str, emp_id: str, from_status
 
 
 def submit_direct_report_drafts(cycle_id: int, manager_emp_id: str) -> int:
-    cursor = get_db().execute(
+    # 当间接上级和部门负责人是同一个人时，自动跳过间接上级审阅环节
+    # 直接将状态变为 DEPT_HEAD_PENDING
+    cursor_skip = get_db().execute(
+        """
+        update evaluation_record
+        set status = 'DEPT_HEAD_PENDING', submitted_at = datetime('now'), updated_at = datetime('now')
+        where cycle_id = ?
+          and status = 'DIRECT_DRAFT'
+          and emp_id in (
+              select emp_id from cycle_employee_snapshot
+              where cycle_id = ? and direct_manager_id = ? and indirect_manager_id = dept_head_id and emp_id != ?
+          )
+        """,
+        (cycle_id, cycle_id, manager_emp_id, manager_emp_id),
+    )
+    # 当间接上级和部门负责人不是同一个人时，状态变为 INDIRECT_PENDING
+    cursor_normal = get_db().execute(
         """
         update evaluation_record
         set status = 'INDIRECT_PENDING', submitted_at = datetime('now'), updated_at = datetime('now')
@@ -176,12 +234,12 @@ def submit_direct_report_drafts(cycle_id: int, manager_emp_id: str) -> int:
           and status = 'DIRECT_DRAFT'
           and emp_id in (
               select emp_id from cycle_employee_snapshot
-              where cycle_id = ? and direct_manager_id = ? and emp_id != ?
+              where cycle_id = ? and direct_manager_id = ? and indirect_manager_id != dept_head_id and emp_id != ?
           )
         """,
         (cycle_id, cycle_id, manager_emp_id, manager_emp_id),
     )
-    return cursor.rowcount
+    return cursor_skip.rowcount + cursor_normal.rowcount
 
 
 def update_status(record_id: int, status: str) -> dict:
@@ -197,9 +255,18 @@ def list_records_by_statuses(cycle_id: int, statuses: list[str]) -> list[dict]:
     placeholders = ",".join("?" * len(statuses))
     rows = get_db().execute(
         f"""
-        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level
+        select r.*,
+               s.emp_name, s.dept_name, s.dept_level_4,
+               s.direct_manager_id, s.indirect_manager_id, s.dept_head_id,
+               s.group_code, s.level,
+               dm.emp_name as direct_manager_name,
+               im.emp_name as indirect_manager_name,
+               dh.emp_name as dept_head_name
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+        left join cycle_employee_snapshot dm on dm.cycle_id = s.cycle_id and dm.emp_id = s.direct_manager_id
+        left join cycle_employee_snapshot im on im.cycle_id = s.cycle_id and im.emp_id = s.indirect_manager_id
+        left join cycle_employee_snapshot dh on dh.cycle_id = s.cycle_id and dh.emp_id = s.dept_head_id
         where r.cycle_id = ? and r.status in ({placeholders})
         order by r.emp_id
         """,

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ record.emp_name }} - 间接上级审阅 - 绩效考核评分工具{% endblock %}
+{% block page_title %}{{ record.emp_name }} / {{ record.emp_id }}{% endblock %}
+{% block page_subtitle %}间接上级审阅详情，可调整建议等级后返回列表。{% endblock %}
+{% block content %}
+<section class="card">
+    <h2>员工自评</h2>
+    <div class="hint">{{ record.self_summary or '员工尚未填写自评总结。' }}</div>
+    <table style="margin-top:12px">
+        <tbody>
+            <tr><th>产出和质量</th><td>{{ record.self_score_1 or '-' }}</td></tr>
+            <tr><th>主动承担</th><td>{{ record.self_score_2 or '-' }}</td></tr>
+            <tr><th>易用性和可维护</th><td>{{ record.self_score_3 or '-' }}</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2>直接上级评分</h2>
+    <table style="margin-top:12px">
+        <tbody>
+            <tr><th>产出和质量</th><td>{{ record.manager_score_1 or '-' }}</td></tr>
+            <tr><th>主动承担</th><td>{{ record.manager_score_2 or '-' }}</td></tr>
+            <tr><th>易用性和可维护</th><td>{{ record.manager_score_3 or '-' }}</td></tr>
+            <tr><th>整体评语</th><td>{{ record.manager_comment or '-' }}</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2>间接上级调整</h2>
+    <form method="post" action="/page/record-adjustment" class="form-grid">
+        <input type="hidden" name="record_id" value="{{ record.id }}">
+        <input type="hidden" name="cycle_id" value="{{ cycle_id }}">
+        <input type="hidden" name="return_to" value="/reviews/indirect/page">
+        <input type="hidden" name="field_name" value="current_subjective_level">
+        <div class="label">当前建议等级</div><div><strong>{{ record.current_subjective_level or '-' }}</strong></div>
+        <div class="label">调整建议等级</div>
+        <select name="after_value">
+            {% for level in subjective_levels %}
+            <option{% if level == (record.current_subjective_level or 'B+') %} selected{% endif %}>{{ level }}</option>
+            {% endfor %}
+        </select>
+        <div class="label">调整原因</div><textarea name="reason" placeholder="填写调整或确认原因" required></textarea>
+        <div></div><button class="btn primary" type="submit">保存调整</button>
+    </form>
+</section>
+
+<div style="margin-top:14px">
+    <a href="/reviews/indirect/page?cycle_id={{ cycle_id }}" class="btn">返回审阅列表</a>
+</div>
+{% endblock %}

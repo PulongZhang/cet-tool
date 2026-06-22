@@ -121,6 +121,14 @@ def add_adjustment(record_id: int):
     record = get_record(record_id)
     if record is None:
         return jsonify({"error": "record not found"}), 404
+    # 检查权限：只有状态为INDIRECT_PENDING的间接上级或DEPT_HEAD_PENDING的部门负责人可以调整
+    allowed = (
+        record.get("status") == "INDIRECT_PENDING" and record.get("indirect_manager_id") == user["emp_id"]
+    ) or (
+        record.get("status") == "DEPT_HEAD_PENDING" and record.get("dept_head_id") == user["emp_id"]
+    )
+    if not allowed:
+        return jsonify({"error": "not authorized to adjust this record in current status"}), 403
     payload = request.get_json(silent=True) or {}
     field_name = payload.get("field_name")
     after_value = payload.get("after_value")

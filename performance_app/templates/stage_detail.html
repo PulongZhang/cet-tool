@@ -38,12 +38,12 @@
             <tr>
                 <td>{{ record.emp_id }}</td>
                 <td>{{ record.emp_name }}</td>
-                <td>{{ record.dept_name }}</td>
+                <td>{{ record.dept_level_4 or record.dept_name or '-' }}</td>
                 <td>{{ record.level }}</td>
                 <td>{{ status_label(record.status) }}</td>
-                <td>{{ record.direct_manager_id or '-' }}</td>
-                <td>{{ record.indirect_manager_id or '-' }}</td>
-                <td>{{ record.dept_head_id or '-' }}</td>
+                <td>{{ record.direct_manager_name or record.direct_manager_id or '-' }}</td>
+                <td>{{ record.indirect_manager_name or record.indirect_manager_id or '-' }}</td>
+                <td>{{ record.dept_head_name or record.dept_head_id or '-' }}</td>
                 <td>{{ record.submitted_at or '-' }}</td>
             </tr>
             {% else %}

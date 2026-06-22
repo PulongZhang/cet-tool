@@ -26,4 +26,47 @@
         <p class="prototype-note">API 参考：<code>/objective/upload</code>；页面动作：<code>/page/objective-upload</code>；模板：<code>/objective/template</code>。</p>
     </div>
 </section>
+
+{% if objective_data %}
+<section class="card">
+    <h2>已导入数据清单（{{ objective_data|length }} 条）</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>工号</th>
+                <th>姓名</th>
+                <th>部门</th>
+                <th>勤奋月均</th>
+                <th>勤奋等级</th>
+                <th>异常次数</th>
+                <th>纪律等级</th>
+                <th>学习时长</th>
+                <th>学习等级</th>
+                <th>已修正</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in objective_data %}
+            <tr>
+                <td>{{ row.emp_id }}</td>
+                <td>{{ row.emp_name }}</td>
+                <td>{{ row.dept_level_3 or row.dept_level_2 or row.dept_level_1 or '-' }}</td>
+                <td>{{ row.diligence_month_avg }}</td>
+                <td><span class="tag">{{ row.diligence_level }}</span></td>
+                <td>{{ row.discipline_raw_count }}</td>
+                <td><span class="tag">{{ row.discipline_level }}</span></td>
+                <td>{{ row.learning_hours }}</td>
+                <td><span class="tag">{{ row.learning_level }}</span></td>
+                <td>{% if row.corrected %}<span class="tag orange">是</span>{% else %}-{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% elif cycle_id %}
+<section class="card">
+    <h2>已导入数据清单</h2>
+    <p class="muted">当前周期暂无客观数据，请上传 Excel 文件。</p>
+</section>
+{% endif %}
 {% endblock %}

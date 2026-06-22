@@ -12,7 +12,7 @@ from performance_app.repositories.employees import add_import_error, create_impo
 
 MONTH_FIELDS = ("diligence_month_1", "diligence_month_2", "diligence_month_3")
 COUNT_FIELDS = ("attendance_exception_count", "log_exception_count")
-REQUIRED_FIELDS = ("emp_id", *MONTH_FIELDS, *COUNT_FIELDS, "learning_hours")
+REQUIRED_FIELDS = ("emp_id",)  # 只要求工号必填
 
 
 def import_objective_rows(cycle_id: int, file_name: str, rows: list[dict], operator_id: str, operator_name: str) -> dict:
@@ -58,11 +58,12 @@ def import_objective_rows(cycle_id: int, file_name: str, rows: list[dict], opera
 
 
 def validate_row(cycle_id: int, row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[dict | None, dict | None]:
-    for field in REQUIRED_FIELDS:
-        if row.get(field) in (None, ""):
-            return None, row_error(row_number, row.get("emp_id"), field, f"{field} is required")
+    # 只检查工号必填
+    emp_id_raw = row.get("emp_id")
+    if emp_id_raw in (None, ""):
+        return None, row_error(row_number, None, "emp_id", "emp_id is required")
 
-    emp_id = str(row["emp_id"]).strip()
+    emp_id = str(emp_id_raw).strip()
     if emp_id in seen_emp_ids:
         return None, row_error(row_number, emp_id, "emp_id", "duplicate emp_id in import file")
 
@@ -70,19 +71,28 @@ def validate_row(cycle_id: int, row: dict, row_number: int, seen_emp_ids: set[st
     if group_code is None:
         return None, row_error(row_number, emp_id, "emp_id", "emp_id does not exist in cycle")
 
+    # 处理数值字段，缺失时使用默认值0
     numeric_values: dict[str, float] = {}
     for field in (*MONTH_FIELDS, "learning_hours"):
-        value, error = parse_non_negative_float(row[field], field, row_number, emp_id)
-        if error:
-            return None, error
-        numeric_values[field] = value
+        value = row.get(field)
+        if value in (None, ""):
+            numeric_values[field] = 0.0
+        else:
+            value, error = parse_non_negative_float(value, field, row_number, emp_id)
+            if error:
+                return None, error
+            numeric_values[field] = value
 
     count_values: dict[str, int] = {}
     for field in COUNT_FIELDS:
-        value, error = parse_non_negative_int(row[field], field, row_number, emp_id)
-        if error:
-            return None, error
-        count_values[field] = value
+        value = row.get(field)
+        if value in (None, ""):
+            count_values[field] = 0
+        else:
+            value, error = parse_non_negative_int(value, field, row_number, emp_id)
+            if error:
+                return None, error
+            count_values[field] = value
 
     seen_emp_ids.add(emp_id)
     diligence_raw_total = sum(numeric_values[field] for field in MONTH_FIELDS)
@@ -91,7 +101,7 @@ def validate_row(cycle_id: int, row: dict, row_number: int, seen_emp_ids: set[st
         "emp_id": emp_id,
         "group_code": group_code,
         "diligence_raw_total": diligence_raw_total,
-        "diligence_month_avg": round(diligence_raw_total / 3, 1),
+        "diligence_month_avg": round(diligence_raw_total / 3, 1) if diligence_raw_total > 0 else 0.0,
         "diligence_level": diligence_level_from_quarter_total(diligence_raw_total),
         "discipline_raw_count": discipline_raw_count,
         "discipline_level": discipline_level_from_exception_count(discipline_raw_count),
@@ -252,3 +262,36 @@ def row_error(row_number: int, emp_id: str | None, field_name: str, error_messag
         "field_name": field_name,
         "error_message": error_message,
     }
+
+
+def list_objective_data(cycle_id: int) -> list[dict]:
+    """获取指定周期的客观数据清单"""
+    rows = get_db().execute(
+        """
+        select
+            o.id,
+            o.emp_id,
+            s.emp_name,
+            s.dept_level_1,
+            s.dept_level_2,
+            s.dept_level_3,
+            s.dept_level_4,
+            o.diligence_raw_total,
+            o.diligence_month_avg,
+            o.diligence_level,
+            o.discipline_raw_count,
+            o.discipline_level,
+            o.learning_hours,
+            o.learning_rank_pct,
+            o.learning_level,
+            o.corrected,
+            o.correction_reason,
+            o.updated_at
+        from objective_data o
+        join cycle_employee_snapshot s on s.cycle_id = o.cycle_id and s.emp_id = o.emp_id
+        where o.cycle_id = ?
+        order by o.emp_id
+        """,
+        (cycle_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]

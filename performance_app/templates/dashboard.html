@@ -11,17 +11,11 @@
     <div class="status-item">部门<strong>{{ dept_display }}</strong></div>
     <div class="status-item">当前状态<strong>{{ status_label(employee_info.status) }}</strong></div>
 </div>
-{% else %}
-<div class="demo-status" role="region" aria-label="当前状态">
-    <div class="status-item">当前用户<strong>{{ current_user.username }}</strong></div>
-    <div class="status-item">当前角色<strong>{{ current_roles | join(' / ') }}</strong></div>
-    <div class="status-item">当前主要阶段<strong>{{ progress.current_stage }}</strong></div>
-    <div class="status-item">周期记录数<strong>{{ progress.total }} 人</strong></div>
-    <div class="status-item">操作模式<strong>真实后端</strong></div>
-</div>
 {% endif %}
 {% endblock %}
 {% block content %}
+{% set is_hr_admin = 'HRBP' in current_user.roles or 'ADMIN' in current_user.roles %}
+{% if is_hr_admin %}
 <section class="card">
     <h2>流程进度</h2>
     <div class="flow">
@@ -34,26 +28,38 @@
         } %}
         {% set is_hr_admin = 'HRBP' in current_user.roles or 'ADMIN' in current_user.roles %}
         {% for stage in progress.stages %}
-        <div class="step {% if stage.title == progress.current_stage %}active{% elif stage.count == 0 and progress.total > 0 %}done{% endif %}">
-            {% if is_hr_admin and stage_links.get(stage.title) and stage.count > 0 %}
-            <a href="/stage/{{ stage_links.get(stage.title) }}?cycle_id={{ cycle_id }}">{{ stage.title }}</a><br><span class="muted">{{ stage.count }} 人</span>
+        <div class="step {% if stage.title == progress.current_stage %}active{% elif stage.pending == 0 and progress.total > 0 %}done{% endif %}">
+            {% if is_hr_admin and stage_links.get(stage.title) and stage.pending > 0 %}
+            <a href="/stage/{{ stage_links.get(stage.title) }}?cycle_id={{ cycle_id }}">{{ stage.title }}</a><br><span class="muted">{{ stage.total }} / {{ stage.pending }}</span>
             {% else %}
-            {{ stage.title }}<br><span class="muted">{{ stage.count }} 人</span>
+            {{ stage.title }}<br><span class="muted">{{ stage.total }} / {{ stage.pending }}</span>
             {% endif %}
         </div>
         {% if not loop.last %}<span class="arrow">→</span>{% endif %}
         {% else %}
-        <div class="step active">暂无周期数据<br><span class="muted">0 人</span></div>
+        <div class="step active">暂无周期数据<br><span class="muted">0 / 0</span></div>
         {% endfor %}
     </div>
 </section>
+{% endif %}
 
 <section class="grid cols-3">
     {% for item in nav_items %}
         {% if item.href != '/' %}
         <a class="card" href="{{ item.href }}">
             <h2>{{ item.title }}</h2>
+            {% if item.href == '/direct-reports' and pending_counts.direct is defined %}
+            <div class="metric">{{ pending_counts.direct_total }} / {{ pending_counts.direct }}</div>
+            <span class="tag">全部 / 待评分</span>
+            {% elif item.href == '/reviews/indirect/page' and pending_counts.indirect is defined %}
+            <div class="metric">{{ pending_counts.indirect_total }} / {{ pending_counts.indirect }}</div>
+            <span class="tag">全部 / 待审阅</span>
+            {% elif item.href == '/reviews/dept-head/page' and pending_counts.dept_head is defined %}
+            <div class="metric">{{ pending_counts.dept_head_total }} / {{ pending_counts.dept_head }}</div>
+            <span class="tag">全部 / 待确认</span>
+            {% else %}
             <p class="muted">进入 {{ item.title }} 页面，页面访问由后端角色权限控制。</p>
+            {% endif %}
         </a>
         {% endif %}
     {% endfor %}
