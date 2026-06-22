@@ -79,43 +79,6 @@
 </section>
 
 <section class="card">
-    <h2>各环节调整历史</h2>
-    {% if adjustment_history %}
-    <table style="margin-top:12px">
-        <thead>
-            <tr>
-                <th>环节</th>
-                <th>调整类型</th>
-                <th>字段</th>
-                <th>调整前</th>
-                <th>调整后</th>
-                <th>调整原因</th>
-                <th>操作人</th>
-                <th>操作时间</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for adj in adjustment_history %}
-            <tr>
-                <td>{{ ADJUSTMENT_STAGE_LABELS.get(adj.stage, adj.stage) or '-' }}</td>
-                <td>{{ ADJUSTMENT_TYPE_LABELS.get(adj.adjustment_type, adj.adjustment_type) or '-' }}</td>
-                <td>{{ FIELD_NAME_LABELS.get(adj.field_name, adj.field_name) or '-' }}</td>
-                <td>{{ adj.before_value or '-' }}</td>
-                <td><span class="tag">{{ adj.after_value or '-' }}</span></td>
-                <td>{{ adj.reason or '-' }}</td>
-                <td>{{ adj.operator_name or '-' }}</td>
-                <td>{{ adj.adjusted_at or '-' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <p class="muted" style="margin-top:8px">以上为该员工在考核各环节中的所有调整记录，按时间顺序排列。</p>
-    {% else %}
-    <p class="muted">暂无调整历史记录。</p>
-    {% endif %}
-</section>
-
-<section class="card">
     <h2>HR 最终等级微调</h2>
     <table style="margin-top:12px">
         <thead><tr><th>系统建议等级</th><th>最终等级</th></tr></thead>
