@@ -129,22 +129,61 @@ def workflow_progress(cycle_id: int | None, user: dict | None = None) -> dict:
             """,
             (cycle_id, user["emp_id"], user["emp_id"]),
         ).fetchall()
+        # 获取全部下属数
+        total_row = get_db().execute(
+            """
+            select count(*) as count
+            from evaluation_record r
+            join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+            where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
+            """,
+            (cycle_id, user["emp_id"], user["emp_id"]),
+        ).fetchone()
+        total_count = total_row["count"] if total_row else 0
     else:
-        # 其他角色查看全局统计
+        # 其他角色查看全局统计（排除部门负责人）
         rows = get_db().execute(
-            "select status, count(*) as count from evaluation_record where cycle_id = ? group by status",
+            """
+            select r.status, count(*) as count
+            from evaluation_record r
+            join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+            where r.cycle_id = ?
+              and not exists (
+                  select 1 from user_role ur
+                  join user_account ua on ua.id = ur.user_id
+                  where ur.role_code = 'DEPT_HEAD' and ua.emp_id = r.emp_id
+              )
+            group by r.status
+            """,
             (cycle_id,),
         ).fetchall()
+        # 获取全部员工数（排除部门负责人）
+        total_row = get_db().execute(
+            """
+            select count(*) as count
+            from evaluation_record r
+            join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+            where r.cycle_id = ?
+              and not exists (
+                  select 1 from user_role ur
+                  join user_account ua on ua.id = ur.user_id
+                  where ur.role_code = 'DEPT_HEAD' and ua.emp_id = r.emp_id
+              )
+            """,
+            (cycle_id,),
+        ).fetchone()
+        total_count = total_row["count"] if total_row else 0
 
     status_counts = {row["status"]: row["count"] for row in rows}
     stages = []
     for stage in WORKFLOW_STAGES:
-        count = sum(status_counts.get(status, 0) for status in stage["statuses"])
-        stages.append({"title": stage["title"], "count": count})
-    total = sum(stage["count"] for stage in stages)
-    current = next((stage for stage in stages if stage["count"]), None)
+        pending = sum(status_counts.get(status, 0) for status in stage["statuses"])
+        stages.append({"title": stage["title"], "total": total_count, "pending": pending})
+
+    # 计算当前主要阶段（找到有待办记录的第一个阶段）
+    current = next((stage for stage in stages if stage["pending"] > 0), None)
     current_stage = current["title"] if current else "暂无待处理记录"
-    return {"total": total, "current_stage": current_stage, "stages": stages}
+    return {"total": total_count, "current_stage": current_stage, "stages": stages}
 
 
 def login_required(view: Callable):
@@ -177,8 +216,22 @@ def role_required(*roles: str):
 @bp.app_context_processor
 def inject_page_context():
     user = current_page_user()
+    user_name = None
+    if user:
+        # 获取用户姓名
+        from performance_app.repositories.employees import list_cycle_employees
+        cycles = list_cycles()
+        if cycles:
+            cycle_id = cycles[0]["id"]
+            employees = list_cycle_employees(cycle_id)
+            for emp in employees:
+                if emp["emp_id"] == user["emp_id"]:
+                    user_name = emp["emp_name"]
+                    break
+
     return {
         "current_user": user,
+        "current_user_name": user_name,
         "current_roles": [ROLE_LABELS.get(role, role) for role in user.get("roles", [])] if user else [],
         "nav_items": nav_items_for(user),
         "status_label": status_label,
@@ -199,12 +252,81 @@ def dashboard():
         from performance_app.repositories.records import get_my_record
         employee_info = get_my_record(cycle_id, user["emp_id"]) if cycle_id else None
 
+    # 计算各角色的待办人数和全部人数
+    pending_counts = {}
+    if cycle_id and user:
+        from performance_app.db import get_db
+        if "DIRECT_MANAGER" in user.get("roles", []):
+            # 直接上级：全部下属数和待评分的下属数
+            total = get_db().execute(
+                """
+                select count(*) from evaluation_record r
+                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+                where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
+                """,
+                (cycle_id, user["emp_id"], user["emp_id"]),
+            ).fetchone()
+            pending = get_db().execute(
+                """
+                select count(*) from evaluation_record r
+                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+                where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
+                  and r.status in ('DIRECT_PENDING', 'DIRECT_DRAFT')
+                """,
+                (cycle_id, user["emp_id"], user["emp_id"]),
+            ).fetchone()
+            pending_counts["direct_total"] = total[0] if total else 0
+            pending_counts["direct"] = pending[0] if pending else 0
+        if "INDIRECT_MANAGER" in user.get("roles", []):
+            # 间接上级：全部记录数和待审阅的记录数
+            total = get_db().execute(
+                """
+                select count(*) from evaluation_record r
+                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+                where r.cycle_id = ? and s.indirect_manager_id = ? and r.emp_id != ?
+                """,
+                (cycle_id, user["emp_id"], user["emp_id"]),
+            ).fetchone()
+            pending = get_db().execute(
+                """
+                select count(*) from evaluation_record r
+                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+                where r.cycle_id = ? and s.indirect_manager_id = ? and r.emp_id != ?
+                  and r.status = 'INDIRECT_PENDING'
+                """,
+                (cycle_id, user["emp_id"], user["emp_id"]),
+            ).fetchone()
+            pending_counts["indirect_total"] = total[0] if total else 0
+            pending_counts["indirect"] = pending[0] if pending else 0
+        if "DEPT_HEAD" in user.get("roles", []):
+            # 部门负责人：全部记录数和待确认的记录数
+            total = get_db().execute(
+                """
+                select count(*) from evaluation_record r
+                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+                where r.cycle_id = ? and s.dept_head_id = ? and r.emp_id != ?
+                """,
+                (cycle_id, user["emp_id"], user["emp_id"]),
+            ).fetchone()
+            pending = get_db().execute(
+                """
+                select count(*) from evaluation_record r
+                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
+                where r.cycle_id = ? and s.dept_head_id = ? and r.emp_id != ?
+                  and r.status = 'DEPT_HEAD_PENDING'
+                """,
+                (cycle_id, user["emp_id"], user["emp_id"]),
+            ).fetchone()
+            pending_counts["dept_head_total"] = total[0] if total else 0
+            pending_counts["dept_head"] = pending[0] if pending else 0
+
     return render_template(
         "dashboard.html",
         cycles=available_cycles(),
         cycle_id=cycle_id,
         progress=progress,
         employee_info=employee_info,
+        pending_counts=pending_counts,
     )
 
 
@@ -265,7 +387,12 @@ def direct_reports_page():
 def indirect_review_page():
     cycle_id = selected_cycle_id()
     user = current_page_user()
-    records = list_review_records(cycle_id, "indirect_manager_id", user["emp_id"], "INDIRECT_PENDING") if cycle_id else []
+    # 间接上级可以看到所有以自己为间接上级的员工，不管状态
+    if cycle_id:
+        from performance_app.repositories.records import list_scope_records
+        records = list_scope_records(cycle_id, "indirect_manager_id", user["emp_id"])
+    else:
+        records = []
     return render_template(
         "indirect_review.html",
         cycles=available_cycles(),
@@ -275,12 +402,39 @@ def indirect_review_page():
     )
 
 
+@bp.get("/reviews/indirect/<int:record_id>")
+@role_required("INDIRECT_MANAGER")
+def indirect_review_detail(record_id: int):
+    cycle_id = selected_cycle_id()
+    user = current_page_user()
+    record = get_my_record(cycle_id, user["emp_id"]) if cycle_id else None
+    # 获取要调整的记录详情
+    from performance_app.repositories.records import get_record
+    detail_record = get_record(record_id)
+    if not detail_record or detail_record.get("indirect_manager_id") != user["emp_id"]:
+        return "无权访问该记录", 403
+    if detail_record.get("status") != "INDIRECT_PENDING":
+        return "该记录已提交，无法再进行操作", 403
+    return render_template(
+        "indirect_review_detail.html",
+        cycles=available_cycles(),
+        cycle_id=cycle_id,
+        record=detail_record,
+        subjective_levels=SUBJECTIVE_LEVELS,
+    )
+
+
 @bp.get("/reviews/dept-head/page")
 @role_required("DEPT_HEAD")
 def dept_review_page():
     cycle_id = selected_cycle_id()
     user = current_page_user()
-    records = list_review_records(cycle_id, "dept_head_id", user["emp_id"], "DEPT_HEAD_PENDING") if cycle_id else []
+    # 部门负责人可以看到所有以自己为部门负责人的员工，不管状态
+    if cycle_id:
+        from performance_app.repositories.records import list_scope_records
+        records = list_scope_records(cycle_id, "dept_head_id", user["emp_id"])
+    else:
+        records = []
     return render_template(
         "dept_review.html",
         cycles=available_cycles(),
@@ -290,15 +444,69 @@ def dept_review_page():
     )
 
 
+@bp.get("/reviews/dept-head/<int:record_id>")
+@role_required("DEPT_HEAD")
+def dept_review_detail(record_id: int):
+    cycle_id = selected_cycle_id()
+    from performance_app.repositories.records import get_record
+    from performance_app.db import get_db
+
+    detail_record = get_record(record_id)
+    if not detail_record or detail_record.get("dept_head_id") != current_page_user()["emp_id"]:
+        return "无权访问该记录", 403
+
+    # 获取完整的调整历史（用于查看各环节调整过程）
+    adjustment_history = get_db().execute(
+        """
+        select stage, adjustment_type, field_name, before_value, after_value, reason, operator_id, operator_name, adjusted_at
+        from grade_adjustment_log
+        where record_id = ?
+        order by adjusted_at asc
+        """,
+        (record_id,),
+    ).fetchall()
+
+    # 获取审计日志
+    audit_logs = get_db().execute(
+        """
+        select action, before_snapshot, after_snapshot, operator_id, operator_name, created_at
+        from audit_log
+        where target_type = 'evaluation_record' and target_id = ?
+        order by created_at asc
+        """,
+        (record_id,),
+    ).fetchall()
+
+    # 判断是否可编辑（只有 DEPT_HEAD_PENDING 状态可以编辑）
+    can_edit = detail_record.get("status") == "DEPT_HEAD_PENDING"
+
+    return render_template(
+        "dept_review_detail.html",
+        cycles=available_cycles(),
+        cycle_id=cycle_id,
+        record=detail_record,
+        subjective_levels=SUBJECTIVE_LEVELS,
+        adjustment_history=[dict(row) for row in adjustment_history],
+        audit_logs=[dict(row) for row in audit_logs],
+        can_edit=can_edit,
+    )
+
+
 @bp.get("/objective/import/page")
 @role_required("HRBP", "ADMIN")
 def objective_import_page():
     cycle_id = selected_cycle_id()
+    # 获取客观数据清单
+    objective_data = []
+    if cycle_id:
+        from performance_app.services.objective_import import list_objective_data
+        objective_data = list_objective_data(cycle_id)
     return render_template(
         "objective_import.html",
         cycles=available_cycles(),
         cycle_id=cycle_id,
         cycle=selected_cycle(cycle_id),
+        objective_data=objective_data,
     )
 
 
@@ -308,6 +516,38 @@ def results_page():
     cycle_id = selected_cycle_id()
     records = list_cycle_results(cycle_id) if cycle_id else []
     return render_template("results.html", cycles=available_cycles(), cycle_id=cycle_id, records=records)
+
+
+@bp.get("/results/adjust/<int:record_id>")
+@role_required("HRBP", "ADMIN")
+def final_adjust_page(record_id: int):
+    """最终等级微调详情页面"""
+    from performance_app.repositories.records import get_record
+    from performance_app.db import get_db
+
+    cycle_id = selected_cycle_id()
+    record = get_record(record_id)
+
+    # 获取调整历史
+    adjustment_log = []
+    if record:
+        adjustment_log = get_db().execute(
+            """
+            select adjusted_at, before_value, after_value, operator_id, operator_name, reason
+            from grade_adjustment_log
+            where record_id = ? and adjustment_type = 'FINAL_LEVEL'
+            order by adjusted_at desc
+            """,
+            (record_id,),
+        ).fetchall()
+
+    return render_template(
+        "final_adjust.html",
+        cycles=available_cycles(),
+        cycle_id=cycle_id,
+        record=record or {},
+        adjustment_log=[dict(row) for row in adjustment_log],
+    )
 
 
 # 阶段状态映射，用于路由参数验证
