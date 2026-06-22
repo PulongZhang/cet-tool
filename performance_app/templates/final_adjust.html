@@ -65,6 +65,14 @@
             <tr><th>确认时间</th><td>{{ dept_adj[0].adjusted_at or '-' }}</td></tr>
         </tbody>
     </table>
+    {% elif record.current_subjective_level %}
+    <table style="margin-top:12px">
+        <tbody>
+            <tr><th>确认前等级</th><td>{% if indirect_adj %}{{ indirect_adj[0].after_value }}{% else %}{{ record.initial_total_grade or '-' }}{% endif %}</td></tr>
+            <tr><th>确认后等级</th><td><span class="tag">{{ record.current_subjective_level or '-' }}</span></td></tr>
+            <tr><th>确认方式</th><td>批量确认</td></tr>
+        </tbody>
+    </table>
     {% else %}
     <p class="muted">部门负责人未进行调整确认，保持间接上级审阅等级 {% if indirect_adj %}{{ indirect_adj[0].after_value }}{% else %}{{ record.initial_total_grade or '-' }}{% endif %}</p>
     {% endif %}
