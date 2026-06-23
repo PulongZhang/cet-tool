@@ -211,11 +211,14 @@ def bulk_update_status(cycle_id: int, scope_field: str, emp_id: str, from_status
 
 def submit_direct_report_drafts(cycle_id: int, manager_emp_id: str) -> int:
     # 当间接上级和部门负责人是同一个人时，自动跳过间接上级审阅环节
-    # 直接将状态变为 DEPT_HEAD_PENDING
+    # 直接将状态变为 DEPT_HEAD_PENDING，并确保 current_subjective_level 已设置
     cursor_skip = get_db().execute(
         """
         update evaluation_record
-        set status = 'DEPT_HEAD_PENDING', submitted_at = datetime('now'), updated_at = datetime('now')
+        set status = 'DEPT_HEAD_PENDING',
+            current_subjective_level = coalesce(current_subjective_level, initial_total_grade),
+            submitted_at = datetime('now'),
+            updated_at = datetime('now')
         where cycle_id = ?
           and status = 'DIRECT_DRAFT'
           and emp_id in (
@@ -226,10 +229,14 @@ def submit_direct_report_drafts(cycle_id: int, manager_emp_id: str) -> int:
         (cycle_id, cycle_id, manager_emp_id, manager_emp_id),
     )
     # 当间接上级和部门负责人不是同一个人时，状态变为 INDIRECT_PENDING
+    # 并确保 current_subjective_level 已设置
     cursor_normal = get_db().execute(
         """
         update evaluation_record
-        set status = 'INDIRECT_PENDING', submitted_at = datetime('now'), updated_at = datetime('now')
+        set status = 'INDIRECT_PENDING',
+            current_subjective_level = coalesce(current_subjective_level, initial_total_grade),
+            submitted_at = datetime('now'),
+            updated_at = datetime('now')
         where cycle_id = ?
           and status = 'DIRECT_DRAFT'
           and emp_id in (

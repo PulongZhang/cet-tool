@@ -52,6 +52,7 @@
                         <div class="label">主动承担{% if record.sequence == '管理序列' %}/团队业绩和产出{% endif %}</div><select name="manager_score_2">{% for level in subjective_levels %}<option{% if level == (record.manager_score_2 or 'A') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
                         <div class="label">易用性和可维护{% if record.sequence == '管理序列' %}/个人关键任务{% endif %}</div><select name="manager_score_3">{% for level in subjective_levels %}<option{% if level == (record.manager_score_3 or 'B+') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
                         <div class="label">初始总评</div><select name="initial_total_grade">{% for level in subjective_levels %}<option{% if level == (record.initial_total_grade or 'A') %} selected{% endif %}>{{ level }}</option>{% endfor %}</select>
+                        <div class="label">当前初评等级</div><div><span class="tag">{{ record.current_subjective_level or '-' }}</span></div>
                         <div class="label">整体评语</div><textarea name="manager_comment" placeholder="A/A+/C/D 必填">{{ record.manager_comment or '' }}</textarea>
                         <div></div><div class="btnrow"><button class="btn" type="submit">保存{{ record.emp_name }}评分草稿</button></div>
                     </form>
