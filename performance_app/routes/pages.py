@@ -12,6 +12,7 @@ from performance_app.repositories.accounts import find_by_id, find_by_username
 from performance_app.repositories.cycles import list_cycles
 from performance_app.repositories.records import (
     distribution_for_records,
+    filter_records,
     get_my_record,
     list_direct_reports,
     list_records_by_statuses,
@@ -425,10 +426,18 @@ def direct_reports_page():
 def indirect_review_page():
     cycle_id = selected_cycle_id()
     user = current_page_user()
+    # 获取筛选参数
+    filter_status = request.args.get("filter_status", "")
+    filter_level = request.args.get("filter_level", "")
+    filter_level_range = request.args.get("filter_level_range", "")
+    filter_dept = request.args.get("filter_dept", "")
+
     # 间接上级可以看到所有以自己为间接上级的员工，不管状态
     if cycle_id:
-        from performance_app.repositories.records import list_scope_records
+        from performance_app.repositories.records import list_scope_records, filter_records
         records = list_scope_records(cycle_id, "indirect_manager_id", user["emp_id"])
+        # 应用筛选
+        records = filter_records(records, filter_status, filter_level, filter_dept, filter_level_range)
     else:
         records = []
     # 只有存在 INDIRECT_PENDING 状态的记录时才能提交
@@ -440,6 +449,10 @@ def indirect_review_page():
         records=records,
         distribution=distribution_for_records(records),
         can_submit=can_submit,
+        filter_status=filter_status,
+        filter_level=filter_level,
+        filter_level_range=filter_level_range,
+        filter_dept=filter_dept,
     )
 
 

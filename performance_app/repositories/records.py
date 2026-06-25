@@ -164,7 +164,7 @@ def list_scope_records(cycle_id: int, scope_field: str, emp_id: str) -> list[dic
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and s.{scope_field} = ? and r.emp_id != ?
-        order by s.dept_level_4, s.level, r.emp_id
+        order by s.sequence desc, s.level, r.emp_id
         """,
         (cycle_id, emp_id, emp_id),
     ).fetchall()
@@ -189,7 +189,30 @@ def list_scope_records(cycle_id: int, scope_field: str, emp_id: str) -> list[dic
                 "operator_name": adjustment["operator_name"],
             }
 
+        # 计算职级范围
+        level = record.get("level", "")
+        if level in ["P1", "P2", "P3"]:
+            record["level_range"] = "P1-P3"
+        elif level in ["P4", "P5", "P6", "P7", "P8", "P9", "P10"]:
+            record["level_range"] = "P4-P10"
+        else:
+            record["level_range"] = level or "-"
+
     return records
+
+
+def filter_records(records: list[dict], filter_status: str, filter_level: str, filter_dept: str, filter_level_range: str = "") -> list[dict]:
+    """筛选记录列表"""
+    filtered = records
+    if filter_status:
+        filtered = [r for r in filtered if r.get("status") == filter_status]
+    if filter_level:
+        filtered = [r for r in filtered if r.get("level") == filter_level]
+    if filter_level_range:
+        filtered = [r for r in filtered if r.get("level_range") == filter_level_range]
+    if filter_dept:
+        filtered = [r for r in filtered if r.get("dept_level_4") == filter_dept or r.get("dept_name") == filter_dept]
+    return filtered
 
 
 def bulk_update_status(cycle_id: int, scope_field: str, emp_id: str, from_status: str, to_status: str) -> int:
