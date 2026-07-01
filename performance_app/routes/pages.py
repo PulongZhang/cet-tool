@@ -13,6 +13,7 @@ from performance_app.repositories.cycles import list_cycles
 from performance_app.repositories.records import (
     distribution_for_records,
     filter_records,
+    final_level_distribution,
     get_my_record,
     level_range_distributions,
     list_direct_reports,
@@ -584,8 +585,11 @@ def results_page():
     # 获取导出下载链接
     export_download_url = session.pop("export_download_url", None)
     export_file_name = session.pop("export_file_name", None)
+    # 计算最终等级分布（基于 final_level）
+    dist_data = final_level_distribution(records)
     return render_template("results.html", cycles=available_cycles(), cycle_id=cycle_id, records=records,
-                          export_download_url=export_download_url, export_file_name=export_file_name)
+                          export_download_url=export_download_url, export_file_name=export_file_name,
+                          dist_data=dist_data)
 
 
 @bp.get("/results/adjust/<int:record_id>")

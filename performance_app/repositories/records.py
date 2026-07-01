@@ -184,6 +184,53 @@ def _aggregate_distribution(dist: dict[str, int]) -> dict[str, int]:
     }
 
 
+def final_level_distribution(records: list[dict]) -> dict:
+    """
+    计算基于最终微调结果（final_level）的职级范围分布数据
+
+    返回格式:
+    {
+        "p1_p3": {"distribution": {...}, "total": N},
+        "p4_p10": {"distribution": {...}, "total": N},
+        "overall": {"distribution": {...}, "total": N}
+    }
+    """
+    p1_p3_records = []
+    p4_p10_records = []
+
+    for record in records:
+        level = record.get("level", "")
+        # 只统计有最终微调结果的记录
+        if record.get("final_level"):
+            if level in ["P1", "P2", "P3"]:
+                p1_p3_records.append(record)
+            elif level in ["P4", "P5", "P6", "P7", "P8", "P9", "P10"]:
+                p4_p10_records.append(record)
+
+    # 计算原始分布
+    p1_p3_raw = {}
+    for r in p1_p3_records:
+        lvl = r.get("final_level", "未评分")
+        p1_p3_raw[lvl] = p1_p3_raw.get(lvl, 0) + 1
+
+    p4_p10_raw = {}
+    for r in p4_p10_records:
+        lvl = r.get("final_level", "未评分")
+        p4_p10_raw[lvl] = p4_p10_raw.get(lvl, 0) + 1
+
+    overall_raw = {}
+    for r in records:
+        if r.get("final_level"):
+            lvl = r.get("final_level", "未评分")
+            overall_raw[lvl] = overall_raw.get(lvl, 0) + 1
+
+    return {
+        "p1_p3": {"distribution": _aggregate_distribution(p1_p3_raw), "total": len(p1_p3_records)},
+        "p4_p10": {"distribution": _aggregate_distribution(p4_p10_raw), "total": len(p4_p10_records)},
+        "overall": {"distribution": _aggregate_distribution(overall_raw), "total": len([r for r in records if r.get("final_level")])},
+    }
+
+
 def update_record_field(record_id: int, field_name: str, after_value: str) -> dict:
     allowed = {
         "current_subjective_level",
