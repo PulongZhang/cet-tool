@@ -140,6 +140,50 @@ def distribution_for_records(records: list[dict]) -> dict[str, int]:
     return distribution
 
 
+def level_range_distributions(records: list[dict]) -> dict:
+    """
+    计算不同职级范围的分布数据
+
+    返回格式:
+    {
+        "p1_p3": {"distribution": {...}, "total": N},
+        "p4_p10": {"distribution": {...}, "total": N},
+        "overall": {"distribution": {...}, "total": N}
+    }
+    """
+    p1_p3_records = []
+    p4_p10_records = []
+
+    for record in records:
+        level = record.get("level", "")
+        if level in ["P1", "P2", "P3"]:
+            p1_p3_records.append(record)
+        elif level in ["P4", "P5", "P6", "P7", "P8", "P9", "P10"]:
+            p4_p10_records.append(record)
+
+    p1_p3_dist = _aggregate_distribution(distribution_for_records(p1_p3_records))
+    p4_p10_dist = _aggregate_distribution(distribution_for_records(p4_p10_records))
+    overall_dist = _aggregate_distribution(distribution_for_records(records))
+
+    return {
+        "p1_p3": {"distribution": p1_p3_dist, "total": len(p1_p3_records)},
+        "p4_p10": {"distribution": p4_p10_dist, "total": len(p4_p10_records)},
+        "overall": {"distribution": overall_dist, "total": len(records)},
+    }
+
+
+def _aggregate_distribution(dist: dict[str, int]) -> dict[str, int]:
+    """
+    聚合分布数据：A+A合并、B+B合并、B-独立、C和D合并
+    """
+    return {
+        "A": dist.get("A+", 0) + dist.get("A", 0),
+        "B": dist.get("B+", 0) + dist.get("B", 0),
+        "B-": dist.get("B-", 0),
+        "C/D": dist.get("C", 0) + dist.get("D", 0),
+    }
+
+
 def update_record_field(record_id: int, field_name: str, after_value: str) -> dict:
     allowed = {
         "current_subjective_level",

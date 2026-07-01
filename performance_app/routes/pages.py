@@ -14,6 +14,7 @@ from performance_app.repositories.records import (
     distribution_for_records,
     filter_records,
     get_my_record,
+    level_range_distributions,
     list_direct_reports,
     list_records_by_statuses,
     list_review_records,
@@ -442,12 +443,13 @@ def indirect_review_page():
         records = []
     # 只有存在 INDIRECT_PENDING 状态的记录时才能提交
     can_submit = any(r.get("status") == "INDIRECT_PENDING" for r in records)
+    dist_data = level_range_distributions(records)
     return render_template(
         "indirect_review.html",
         cycles=available_cycles(),
         cycle_id=cycle_id,
         records=records,
-        distribution=distribution_for_records(records),
+        dist_data=dist_data,
         can_submit=can_submit,
         filter_status=filter_status,
         filter_level=filter_level,
@@ -494,12 +496,13 @@ def dept_review_page():
         records = []
     # 只有存在 DEPT_HEAD_PENDING 状态的记录时才能提交
     can_submit = any(r.get("status") == "DEPT_HEAD_PENDING" for r in records)
+    dist_data = level_range_distributions(records)
     return render_template(
         "dept_review.html",
         cycles=available_cycles(),
         cycle_id=cycle_id,
         records=records,
-        distribution=distribution_for_records(records),
+        dist_data=dist_data,
         can_submit=can_submit,
     )
 

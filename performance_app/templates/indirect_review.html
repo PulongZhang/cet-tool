@@ -3,17 +3,96 @@
 {% block page_title %}间接上级审阅{% endblock %}
 {% block page_subtitle %}查看管辖团队初评等级、比例分布，逐条调整后提交到部门负责人。{% endblock %}
 {% block content %}
-{% set total = distribution.values() | sum %}
-<section class="grid cols-3">
-    {% for level, count in distribution.items() %}
+{# 标准比例参考 #}
+{% set standard_ratios = {'A': 20, 'B': 65, 'B-': 10, 'C/D': 5} %}
+{# 等级显示名称 #}
+{% set level_names = {'A': 'A/A+', 'B': 'B+/B', 'B-': 'B-', 'C/D': 'C/D'} %}
+
+{# P1-P3 人员分布 #}
+{% set p1_p3_total = dist_data.p1_p3.total %}
+{% set p1_p3_dist = dist_data.p1_p3.distribution %}
+{% set p1_p3_levels = ['A', 'B', 'B-', 'C/D'] %}
+
+{# P4-P10 人员分布 #}
+{% set p4_p10_total = dist_data.p4_p10.total %}
+{% set p4_p10_dist = dist_data.p4_p10.distribution %}
+{% set p4_p10_levels = ['A', 'B', 'B-', 'C/D'] %}
+
+{# 总体分布 #}
+{% set overall_total = dist_data.overall.total %}
+{% set overall_dist = dist_data.overall.distribution %}
+{% set overall_levels = ['A', 'B', 'B-', 'C/D'] %}
+
+<style>
+.compact-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.compact-stats .card {
+    padding: 10px;
+}
+.compact-stats h4 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+.compact-stats .metric {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+.compact-stats .muted {
+    font-size: 12px;
+}
+.stats-section-title {
+    font-size: 13px;
+    color: #666;
+    margin: 12px 0 8px 0;
+}
+</style>
+
+<div class="stats-section-title">P1-P3 人员各级别占比（共 {{ p1_p3_total }} 人）</div>
+<section class="compact-stats">
+    {% for level in p1_p3_levels %}
+    {% set count = p1_p3_dist.get(level, 0) %}
+    {% set actual_pct = ((count / p1_p3_total * 100) | round(1)) if p1_p3_total > 0 else 0 %}
+    {% set std_pct = standard_ratios[level] %}
     <div class="card">
-        <h3>{{ level }}</h3>
-        <div class="metric">{{ ((count / total * 100) | round(1)) if total > 0 else 0 }}%</div>
+        <h4>{{ level_names[level] }}（{{ std_pct }}%）</h4>
+        <div class="metric">{{ actual_pct }}%</div>
         <div class="muted">{{ count }} 人</div>
-        <span class="tag">当前初评等级</span>
     </div>
-    {% else %}
-    <div class="card"><h3>暂无待审阅记录</h3><div class="metric">0</div><span class="tag gray">待间接上级审阅</span></div>
+    {% endfor %}
+</section>
+
+<div class="stats-section-title">P4-P10 人员各级别占比（共 {{ p4_p10_total }} 人）</div>
+<section class="compact-stats">
+    {% for level in p4_p10_levels %}
+    {% set count = p4_p10_dist.get(level, 0) %}
+    {% set actual_pct = ((count / p4_p10_total * 100) | round(1)) if p4_p10_total > 0 else 0 %}
+    {% set std_pct = standard_ratios[level] %}
+    <div class="card">
+        <h4>{{ level_names[level] }}（{{ std_pct }}%）</h4>
+        <div class="metric">{{ actual_pct }}%</div>
+        <div class="muted">{{ count }} 人</div>
+    </div>
+    {% endfor %}
+</section>
+
+<div class="stats-section-title">总体各级别占比（共 {{ overall_total }} 人）</div>
+<section class="compact-stats">
+    {% for level in overall_levels %}
+    {% set count = overall_dist.get(level, 0) %}
+    {% set actual_pct = ((count / overall_total * 100) | round(1)) if overall_total > 0 else 0 %}
+    {% set std_pct = standard_ratios[level] %}
+    <div class="card">
+        <h4>{{ level_names[level] }}（{{ std_pct }}%）</h4>
+        <div class="metric">{{ actual_pct }}%</div>
+        <div class="muted">{{ count }} 人</div>
+        <span class="tag" style="font-size: 11px;">当前初评等级</span>
+    </div>
     {% endfor %}
 </section>
 
