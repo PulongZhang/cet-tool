@@ -143,7 +143,7 @@ def workflow_progress(cycle_id: int | None, user: dict | None = None) -> dict:
     if cycle_id is None:
         return {"total": 0, "current_stage": "暂无周期", "stages": []}
 
-    # 如果用户是直接上级，只统计该用户的下属
+    # 如果用户是直接上级，只统计该用户的下属（包含 EXCLUDED，因为需要打分）
     if user and "DIRECT_MANAGER" in user.get("roles", []):
         rows = get_db().execute(
             """
@@ -151,7 +151,6 @@ def workflow_progress(cycle_id: int | None, user: dict | None = None) -> dict:
             from evaluation_record r
             join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
             where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
-              and s.group_code != 'EXCLUDED'
             group by r.status
             """,
             (cycle_id, user["emp_id"], user["emp_id"]),
@@ -163,7 +162,6 @@ def workflow_progress(cycle_id: int | None, user: dict | None = None) -> dict:
             from evaluation_record r
             join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
             where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
-              and s.group_code != 'EXCLUDED'
             """,
             (cycle_id, user["emp_id"], user["emp_id"]),
         ).fetchone()
