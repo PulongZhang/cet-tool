@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlite3 import Row
 
 from performance_app.db import get_db
+from performance_app.domain.constants import FORCE_MANAGEMENT_DIMENSIONS_EMPLOYEES
 
 
 def row_to_record(row: Row) -> dict:
@@ -47,7 +48,13 @@ def list_direct_reports(cycle_id: int, manager_emp_id: str) -> list[dict]:
         """,
         (cycle_id, manager_emp_id, manager_emp_id),
     ).fetchall()
-    return [row_to_record(row) for row in rows]
+    records = [row_to_record(row) for row in rows]
+    # 为强制使用管理维度的员工添加标记
+    for record in records:
+        record["use_management_dimensions"] = (
+            record["emp_id"] in FORCE_MANAGEMENT_DIMENSIONS_EMPLOYEES or record.get("sequence") == "管理序列"
+        )
+    return records
 
 
 def update_self_review(record_id: int, payload: dict, status: str) -> dict:

@@ -395,14 +395,17 @@ def cycle_management_page():
 @bp.get("/self-review")
 @role_required("EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD")
 def self_review_page():
-    from performance_app.domain.constants import EMPLOYEE_LABELS, MANAGEMENT_LABELS
+    from performance_app.domain.constants import (
+        EMPLOYEE_LABELS, MANAGEMENT_LABELS, FORCE_MANAGEMENT_DIMENSIONS_EMPLOYEES
+    )
 
     cycle_id = selected_cycle_id()
     user = current_page_user()
     record = get_my_record(cycle_id, user["emp_id"]) if cycle_id else None
 
     # 根据序列获取评价维度标签
-    if record and record.get("sequence") == "管理序列":
+    # 特殊人员强制使用管理维度
+    if record and (user["emp_id"] in FORCE_MANAGEMENT_DIMENSIONS_EMPLOYEES or record.get("sequence") == "管理序列"):
         subjective_labels = MANAGEMENT_LABELS
     else:
         subjective_labels = EMPLOYEE_LABELS
