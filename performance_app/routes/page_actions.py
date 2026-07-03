@@ -323,12 +323,21 @@ def page_objective_upload():
 @bp.post("/page/calculate")
 @role_required("HRBP", "ADMIN")
 def page_calculate():
+    from flask import flash
     cycle_id = int(request.form["cycle_id"])
     user = current_page_user()
     try:
         calculate_cycle(cycle_id, user["emp_id"], user["username"])
-    except CalculationPrerequisiteError:
-        pass
+        flash("计算完成！", "success")
+    except CalculationPrerequisiteError as e:
+        # 显示详细的错误信息
+        missing_count = len(e.missing)
+        if missing_count <= 10:
+            missing_details = ", ".join(f"{m['emp_id']}" for m in e.missing[:10])
+            flash(f"计算失败：有 {missing_count} 条记录缺少必要数据（工号：{missing_details}）。请确保所有记录都有主观评分和客观数据。", "error")
+        else:
+            missing_sample = ", ".join(f"{m['emp_id']}" for m in e.missing[:5])
+            flash(f"计算失败：有 {missing_count} 条记录缺少必要数据（示例工号：{missing_sample}...）。请确保所有记录都有主观评分和客观数据。", "error")
     return redirect_with_cycle("/results", cycle_id)
 
 
