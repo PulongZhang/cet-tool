@@ -125,6 +125,8 @@ def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[di
 def role_map_for_rows(rows: list[dict]) -> dict[str, set[str]]:
     imported_ids = {row["emp_id"] for row in rows}
     roles = {emp_id: set() for emp_id in imported_ids}
+    # 第一遍：先标记哪些员工在Excel中明确指定了角色
+    specified_in_excel: set[str] = set()
 
     for row in rows:
         emp_id = row["emp_id"]
@@ -142,18 +144,27 @@ def role_map_for_rows(rows: list[dict]) -> dict[str, set[str]]:
                 # 没有分隔符，作为单个角色
                 if specified_roles:
                     roles[emp_id] = {specified_roles}
+            specified_in_excel.add(emp_id)
         else:
             # 没有指定角色，默认为员工
             roles[emp_id] = {"EMPLOYEE"}
 
-        # 无论Excel中是否指定角色，都根据组织关系推断管理角色
-        # 这样可以确保既有的管理功能正常工作
+    # 第二遍：只有当Excel中未明确指定角色时，才根据组织关系推断管理角色
+    for row in rows:
+        emp_id = row["emp_id"]
+        # 只有在Excel中未明确指定角色的员工，才会被自动添加管理角色
         if row.get("direct_manager_id") and row["direct_manager_id"] in imported_ids:
-            roles[row["direct_manager_id"]].add("DIRECT_MANAGER")
+            manager_id = row["direct_manager_id"]
+            if manager_id not in specified_in_excel:
+                roles[manager_id].add("DIRECT_MANAGER")
         if row.get("indirect_manager_id") and row["indirect_manager_id"] in imported_ids:
-            roles[row["indirect_manager_id"]].add("INDIRECT_MANAGER")
+            manager_id = row["indirect_manager_id"]
+            if manager_id not in specified_in_excel:
+                roles[manager_id].add("INDIRECT_MANAGER")
         if row.get("dept_head_id") and row["dept_head_id"] in imported_ids:
-            roles[row["dept_head_id"]].add("DEPT_HEAD")
+            manager_id = row["dept_head_id"]
+            if manager_id not in specified_in_excel:
+                roles[manager_id].add("DEPT_HEAD")
 
     return roles
 

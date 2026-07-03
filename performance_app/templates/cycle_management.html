@@ -32,7 +32,7 @@
     <p class="muted">选择一个"准备中"的周期，导入本周期参与考核的员工清单。系统将自动生成员工登录账号（初始密码为 ChangeMe123!）并分配对应角色。</p>
     <div class="form-grid">
         <div class="label">选择周期</div>
-        <select id="cycleSelect" name="cycle_id">
+        <select id="employeeCycleSelect" name="cycle_id">
             <option value="">-- 请选择 --</option>
             {% for cycle in cycles %}
             {% if cycle.status == 'PREPARING' %}
@@ -98,7 +98,7 @@
 </style>
 
 <script>
-const cycleSelect = document.getElementById('cycleSelect');
+const cycleSelect = document.getElementById('employeeCycleSelect');
 const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
 const employeeFile = document.getElementById('employeeFile');
 const uploadBtn = document.getElementById('uploadBtn');

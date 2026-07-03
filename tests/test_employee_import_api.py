@@ -53,9 +53,9 @@ def valid_rows():
             "sequence": "管理序列",
             "level": "不适用",
             "dept_name": "平台研发部",
-            "direct_manager_id": "M003",
-            "indirect_manager_id": "M003",
-            "dept_head_id": "M003",
+            "direct_manager_id": "",
+            "indirect_manager_id": "",
+            "dept_head_id": "",
         },
     ]
 
@@ -112,16 +112,26 @@ def test_import_employees_records_duplicate_and_invalid_level_errors(tmp_path):
     app = make_app(tmp_path)
     client = app.test_client()
     create_cycle(client)
-    rows = valid_rows()[:1] + [
+    rows = [
+        {
+            "emp_id": "E001",
+            "emp_name": "李四",
+            "sequence": "员工序列",
+            "level": "P4",
+            "dept_name": "平台研发部",
+            "direct_manager_id": "",
+            "indirect_manager_id": "",
+            "dept_head_id": "",
+        },
         {
             "emp_id": "E001",
             "emp_name": "重复员工",
             "sequence": "员工序列",
             "level": "P1",
             "dept_name": "平台研发部",
-            "direct_manager_id": "M001",
-            "indirect_manager_id": "M002",
-            "dept_head_id": "M003",
+            "direct_manager_id": "",
+            "indirect_manager_id": "",
+            "dept_head_id": "",
         },
         {
             "emp_id": "E002",
@@ -129,9 +139,9 @@ def test_import_employees_records_duplicate_and_invalid_level_errors(tmp_path):
             "sequence": "员工序列",
             "level": "P11",
             "dept_name": "平台研发部",
-            "direct_manager_id": "M001",
-            "indirect_manager_id": "M002",
-            "dept_head_id": "M003",
+            "direct_manager_id": "",
+            "indirect_manager_id": "",
+            "dept_head_id": "",
         },
     ]
 
