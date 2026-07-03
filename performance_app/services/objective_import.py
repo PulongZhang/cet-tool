@@ -78,7 +78,7 @@ def validate_row(cycle_id: int, row: dict, row_number: int, seen_emp_ids: set[st
         if value in (None, ""):
             numeric_values[field] = 0.0
         else:
-            value, error = parse_non_negative_float(value, field, row_number, emp_id)
+            value, error = parse_float(value, field, row_number, emp_id)
             if error:
                 return None, error
             numeric_values[field] = value
@@ -117,13 +117,11 @@ def group_code_for_emp(cycle_id: int, emp_id: str) -> str | None:
     return row["group_code"] if row else None
 
 
-def parse_non_negative_float(value: object, field: str, row_number: int, emp_id: str) -> tuple[float | None, dict | None]:
+def parse_float(value: object, field: str, row_number: int, emp_id: str) -> tuple[float | None, dict | None]:
     try:
         parsed = float(value)
     except (TypeError, ValueError):
         return None, row_error(row_number, emp_id, field, f"{field} must be numeric")
-    if parsed < 0:
-        return None, row_error(row_number, emp_id, field, f"{field} cannot be negative")
     return parsed, None
 
 
