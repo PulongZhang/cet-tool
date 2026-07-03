@@ -102,3 +102,57 @@ def test_delete_preparing_cycle_and_reject_active_cycle_delete(tmp_path):
         delete_audit_count = connection.execute("select count(*) from audit_log where action = 'DELETE_CYCLE'").fetchone()[0]
     assert cycles == [("2026-Q3",)]
     assert delete_audit_count == 1
+
+
+def test_delete_preparing_cycle_removes_non_cascading_import_batch(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+    client.post("/cycles", json={"cycle_name": "2026-Q2", "start_date": "2026-04-01", "end_date": "2026-06-30"})
+
+    # 准备阶段导入数据会在 import_batch 留下指向该周期的记录；该表无 on delete cascade
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute(
+            """
+            insert into import_batch (cycle_id, import_type, file_name, total_count, operator_id)
+            values (1, 'EMPLOYEE', 'employees.xlsx', 10, 'admin')
+            """
+        )
+
+    deleted = client.delete("/cycles/1", headers={"X-Operator-Id": "admin", "X-Operator-Name": "管理员"})
+
+    assert deleted.status_code == 200
+    assert deleted.get_json() == {"deleted": True}
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        assert connection.execute("select count(*) from evaluation_cycle").fetchone()[0] == 0
+        assert connection.execute("select count(*) from import_batch").fetchone()[0] == 0
+
+
+def test_delete_preparing_cycle_removes_non_cascading_grade_adjustment_log(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+    client.post("/cycles", json={"cycle_name": "2026-Q2", "start_date": "2026-04-01", "end_date": "2026-06-30"})
+
+    # grade_adjustment_log 同时引用 evaluation_cycle 与 evaluation_record，且均无 on delete cascade
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute(
+            "insert into evaluation_record (cycle_id, emp_id, status) values (1, 'emp001', 'SELF_PENDING')"
+        )
+        connection.execute(
+            """
+            insert into grade_adjustment_log
+                (cycle_id, record_id, stage, adjustment_type, field_name,
+                 before_value, after_value, reason, operator_id, operator_name)
+            values (1, 1, 'DEPT_HEAD', 'SUGGESTED_LEVEL', 'current_subjective_level',
+                    'B', 'A', '校准', 'admin', '管理员')
+            """
+        )
+
+    deleted = client.delete("/cycles/1", headers={"X-Operator-Id": "admin", "X-Operator-Name": "管理员"})
+
+    assert deleted.status_code == 200
+    assert deleted.get_json() == {"deleted": True}
+    with sqlite3.connect(app.config["DATABASE"]) as connection:
+        assert connection.execute("select count(*) from evaluation_cycle").fetchone()[0] == 0
+        assert connection.execute("select count(*) from grade_adjustment_log").fetchone()[0] == 0

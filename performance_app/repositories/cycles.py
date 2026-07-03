@@ -86,5 +86,9 @@ def delete_preparing_cycle(cycle_id: int) -> dict | None:
     cycle = get_cycle(cycle_id)
     if cycle is None or cycle["status"] != "PREPARING":
         return None
-    get_db().execute("delete from evaluation_cycle where id = ?", (cycle_id,))
+    db = get_db()
+    # 这两张表对 evaluation_cycle 未声明 on delete cascade，需在删除周期前手动清理
+    db.execute("delete from grade_adjustment_log where cycle_id = ?", (cycle_id,))
+    db.execute("delete from import_batch where cycle_id = ?", (cycle_id,))
+    db.execute("delete from evaluation_cycle where id = ?", (cycle_id,))
     return cycle
