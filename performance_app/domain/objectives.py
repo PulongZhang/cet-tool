@@ -2,9 +2,7 @@ from performance_app.domain.grades import final_level_from_rank_pct
 
 
 def diligence_level_from_quarter_total(quarter_total: float) -> str:
-    if quarter_total < 0:
-        raise ValueError("Diligence total cannot be negative")
-
+    # 允许勤奋数据为负数，负数直接评为D等级
     month_average = quarter_total / 3
     if month_average < 11:
         return "D"
