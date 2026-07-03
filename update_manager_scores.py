@@ -25,7 +25,7 @@ conn = sqlite3.connect(r'd:\AI工作台\cet-tool\data\performance_review.sqlite3
 cursor = conn.cursor()
 
 cycle_id = 6
-managers = ['002171', '002047']
+managers = ['000204', '000825', '001653', '001663', '002171', '002047']  # 包含所有需要处理的经理
 
 for mgr in managers:
     print(f"\n=== 处理 {mgr} 的直接下属 ===")
@@ -38,6 +38,7 @@ for mgr in managers:
     ''', (cycle_id, mgr))
 
     records = cursor.fetchall()
+    updated_count = 0
     for rec in records:
         record_id = rec[0]
         emp_id = rec[1]
@@ -70,15 +71,22 @@ for mgr in managers:
                 WHERE id = ?
             ''', (new_s1, new_s2, new_s3, new_init, new_init, record_id))
 
-            print(f" [{emp_id}({emp_name})]")
-            if current_s1 != new_s1:
-                print(f"   维度1: {current_s1} -> {new_s1}")
-            if current_s2 != new_s2:
-                print(f"   维度2: {current_s2} -> {new_s2}")
-            if current_s3 != new_s3:
-                print(f"   维度3: {current_s3} -> {new_s3}")
-            if current_init != new_init:
-                print(f"   初始总评: {current_init} -> {new_init}")
+            has_change = (current_s1 != new_s1 or current_s2 != new_s2 or
+                         current_s3 != new_s3 or current_init != new_init)
+            if has_change:
+                updated_count += 1
+                print(f" [{emp_id}({emp_name})]")
+                if current_s1 != new_s1:
+                    print(f"   维度1: {current_s1} -> {new_s1}")
+                if current_s2 != new_s2:
+                    print(f"   维度2: {current_s2} -> {new_s2}")
+                if current_s3 != new_s3:
+                    print(f"   维度3: {current_s3} -> {new_s3}")
+                if current_init != new_init:
+                    print(f"   初始总评: {current_init} -> {new_init}")
+
+    if updated_count == 0:
+        print(f" 所有数据已是最新，无需更新")
 
 conn.commit()
 conn.close()
