@@ -245,10 +245,10 @@ def role_required(*roles: str):
 def inject_page_context():
     user = current_page_user()
     user_name = None
+    cycles = list_cycles()
     if user:
         # 获取用户姓名
         from performance_app.repositories.employees import list_cycle_employees
-        cycles = list_cycles()
         if cycles:
             cycle_id = cycles[0]["id"]
             employees = list_cycle_employees(cycle_id)
@@ -257,6 +257,10 @@ def inject_page_context():
                     user_name = emp["emp_name"]
                     break
 
+    # 获取当前选中的周期 ID
+    from flask import request
+    current_cycle_id = selected_cycle_id()
+
     return {
         "current_user": user,
         "current_user_name": user_name,
@@ -264,6 +268,8 @@ def inject_page_context():
         "nav_items": nav_items_for(user),
         "status_label": status_label,
         "subjective_levels": SUBJECTIVE_LEVELS,
+        "all_cycles": cycles,
+        "current_cycle_id": current_cycle_id,
     }
 
 

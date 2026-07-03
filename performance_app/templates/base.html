@@ -29,6 +29,18 @@
                     <h1>{% block page_title %}首页仪表盘{% endblock %}</h1>
                     <p>{% block page_subtitle %}真实页面：登录态、角色权限、数据和操作均由后端控制。{% endblock %}</p>
                 </div>
+                {% if all_cycles and all_cycles.length > 0 %}
+                <div class="cycle-selector" style="margin-right: auto; margin-left: 16px;">
+                    <label for="cycleSelect" style="font-size: 12px; color: #666;">考核周期：</label>
+                    <select id="cycleSelect" onchange="changeCycle(this.value)" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                        {% for cycle in all_cycles %}
+                        <option value="{{ cycle.id }}" {% if cycle.id == current_cycle_id %}selected{% endif %}>
+                            {{ cycle.cycle_name }} ({{ cycle.start_date }} ~ {{ cycle.end_date }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
                 <div class="userbox">
                     <div><strong>{{ current_user_name or current_user.username if current_user else '' }}</strong></div>
                     <div class="muted">工号：{{ current_user.emp_id if current_user else '' }}</div>
@@ -55,5 +67,15 @@
         {% block public_content %}{% block content_public %}{% endblock %}{% endblock %}
     </main>
     {% endif %}
+    <script>
+    function changeCycle(cycleId) {
+        // 获取当前 URL 参数
+        const urlParams = new URLSearchParams(window.location.search);
+        // 更新 cycle_id 参数
+        urlParams.set('cycle_id', cycleId);
+        // 重新加载页面，保留其他参数
+        window.location.href = window.location.pathname + '?' + urlParams.toString();
+    }
+    </script>
 </body>
 </html>
