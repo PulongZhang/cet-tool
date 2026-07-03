@@ -98,22 +98,60 @@
 
 <section class="card">
     <h2>部门负责人确认总览</h2>
+    <div class="form-grid" style="grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px;">
+        <div>
+            <select name="filter_status" onchange="location.href='/reviews/dept-head/page?cycle_id={{ cycle_id }}&filter_status='+this.value+'&filter_level={{ filter_level }}&filter_level_range={{ filter_level_range }}&filter_dept={{ filter_dept }}'" style="width:100%; padding:8px;">
+                <option value="">全部状态</option>
+                <option value="INDIRECT_PENDING" {% if filter_status == 'INDIRECT_PENDING' %}selected{% endif %}>待间接上级审阅</option>
+                <option value="DEPT_HEAD_PENDING" {% if filter_status == 'DEPT_HEAD_PENDING' %}selected{% endif %}>待部门负责人确认</option>
+                <option value="HR_PENDING" {% if filter_status == 'HR_PENDING' %}selected{% endif %}>待HR处理</option>
+                <option value="FINAL_CONFIRMED" {% if filter_status == 'FINAL_CONFIRMED' %}selected{% endif %}>最终已确认</option>
+            </select>
+        </div>
+        <div>
+            <select name="filter_level" onchange="location.href='/reviews/dept-head/page?cycle_id={{ cycle_id }}&filter_status={{ filter_status }}&filter_level='+this.value+'&filter_level_range={{ filter_level_range }}&filter_dept={{ filter_dept }}'" style="width:100%; padding:8px;">
+                <option value="">全部职级</option>
+                {% for level in all_levels %}
+                <option value="{{ level }}" {% if filter_level == level %}selected{% endif %}>{{ level }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <select name="filter_level_range" onchange="location.href='/reviews/dept-head/page?cycle_id={{ cycle_id }}&filter_status={{ filter_status }}&filter_level={{ filter_level }}&filter_level_range='+this.value+'&filter_dept={{ filter_dept }}'" style="width:100%; padding:8px;">
+                <option value="">全部职级范围</option>
+                <option value="P1-P3" {% if filter_level_range == 'P1-P3' %}selected{% endif %}>P1-P3</option>
+                <option value="P4-P10" {% if filter_level_range == 'P4-P10' %}selected{% endif %}>P4-P10</option>
+            </select>
+        </div>
+        <div>
+            <select name="filter_dept" onchange="location.href='/reviews/dept-head/page?cycle_id={{ cycle_id }}&filter_status={{ filter_status }}&filter_level={{ filter_level }}&filter_level_range={{ filter_level_range }}&filter_dept='+this.value" style="width:100%; padding:8px;">
+                <option value="">全部部门</option>
+                {% for dept in all_depts %}
+                <option value="{{ dept }}" {% if filter_dept == dept %}selected{% endif %}>{{ dept }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <button type="button" onclick="location.href='/reviews/dept-head/page?cycle_id={{ cycle_id }}'" class="btn" style="width:100%; padding:8px;">重置筛选</button>
+        </div>
+    </div>
     <table>
-        <thead><tr><th>工号</th><th>姓名</th><th>部门</th><th>职级</th><th>直接上级初评</th><th>间接上级审阅</th><th>部门负责人调整确认</th><th>状态</th></tr></thead>
+        <thead><tr><th>工号</th><th>姓名</th><th>部门</th><th>职级</th><th>职级范围</th><th>直接上级初评</th><th>间接上级审阅</th><th>部门负责人调整确认</th><th>状态</th></tr></thead>
         <tbody>
             {% for record in records %}
             <tr>
                 <td>{{ record.emp_id }}</td>
                 <td><a href="/reviews/dept-head/{{ record.id }}?cycle_id={{ cycle_id }}">{{ record.emp_name }}</a></td>
                 <td>{{ record.dept_level_4 or record.dept_name or '-' }}</td>
-                <td>{{ record.level }}</td>
+                <td>{{ record.level or '-' }}</td>
+                <td>{{ record.level_range or '-' }}</td>
                 <td>{{ record.initial_total_grade or '-' }}</td>
                 <td>{% if record.adjustment %}{{ record.adjustment.after_value or '-' }}{% else %}{{ record.initial_total_grade or '-' }}{% endif %}</td>
                 <td>{{ record.current_subjective_level or '-' }}</td>
                 <td>{{ status_label(record.status) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="8" class="muted">暂无待部门负责人确认记录。请先完成间接上级审阅提交。</td></tr>
+            <tr><td colspan="9" class="muted">暂无待部门负责人确认记录。请先完成间接上级审阅提交。</td></tr>
             {% endfor %}
         </tbody>
     </table>

@@ -445,10 +445,15 @@ def indirect_review_page():
     if cycle_id:
         from performance_app.repositories.records import list_scope_records, filter_records
         records = list_scope_records(cycle_id, "indirect_manager_id", user["emp_id"])
+        # 应用筛选前先获取所有唯一部门列表（用于筛选下拉框）
+        all_depts = sorted(set(r.get("dept_level_4") or r.get("dept_name", "") for r in records if r.get("dept_level_4") or r.get("dept_name")))
+        all_levels = sorted(set(r.get("level") for r in records if r.get("level")))
         # 应用筛选
         records = filter_records(records, filter_status, filter_level, filter_dept, filter_level_range)
     else:
         records = []
+        all_depts = []
+        all_levels = []
     # 只有存在 INDIRECT_PENDING 状态的记录时才能提交
     can_submit = any(r.get("status") == "INDIRECT_PENDING" for r in records)
     dist_data = level_range_distributions(records)
@@ -463,6 +468,8 @@ def indirect_review_page():
         filter_level=filter_level,
         filter_level_range=filter_level_range,
         filter_dept=filter_dept,
+        all_depts=all_depts,
+        all_levels=all_levels,
     )
 
 
@@ -496,12 +503,25 @@ def indirect_review_detail(record_id: int):
 def dept_review_page():
     cycle_id = selected_cycle_id()
     user = current_page_user()
+    # 获取筛选参数
+    filter_status = request.args.get("filter_status", "")
+    filter_level = request.args.get("filter_level", "")
+    filter_level_range = request.args.get("filter_level_range", "")
+    filter_dept = request.args.get("filter_dept", "")
+
     # 部门负责人可以看到所有以自己为部门负责人的员工，不管状态
     if cycle_id:
-        from performance_app.repositories.records import list_scope_records
+        from performance_app.repositories.records import list_scope_records, filter_records
         records = list_scope_records(cycle_id, "dept_head_id", user["emp_id"])
+        # 应用筛选前先获取所有唯一部门列表（用于筛选下拉框）
+        all_depts = sorted(set(r.get("dept_level_4") or r.get("dept_name", "") for r in records if r.get("dept_level_4") or r.get("dept_name")))
+        all_levels = sorted(set(r.get("level") for r in records if r.get("level")))
+        # 应用筛选
+        records = filter_records(records, filter_status, filter_level, filter_dept, filter_level_range)
     else:
         records = []
+        all_depts = []
+        all_levels = []
     # 只有存在 DEPT_HEAD_PENDING 状态的记录时才能提交
     can_submit = any(r.get("status") == "DEPT_HEAD_PENDING" for r in records)
     dist_data = level_range_distributions(records)
@@ -512,6 +532,12 @@ def dept_review_page():
         records=records,
         dist_data=dist_data,
         can_submit=can_submit,
+        filter_status=filter_status,
+        filter_level=filter_level,
+        filter_level_range=filter_level_range,
+        filter_dept=filter_dept,
+        all_depts=all_depts,
+        all_levels=all_levels,
     )
 
 

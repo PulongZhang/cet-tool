@@ -40,11 +40,11 @@ def get_my_record(cycle_id: int, emp_id: str) -> dict | None:
 def list_direct_reports(cycle_id: int, manager_emp_id: str) -> list[dict]:
     rows = get_db().execute(
         """
-        select r.*, s.emp_name, s.dept_name, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level, s.sequence
+        select r.*, s.emp_name, s.dept_name, s.dept_level_4, s.direct_manager_id, s.indirect_manager_id, s.dept_head_id, s.group_code, s.level, s.sequence
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
-        order by r.emp_id
+        order by s.dept_level_4, s.level desc, r.emp_id
         """,
         (cycle_id, manager_emp_id, manager_emp_id),
     ).fetchall()
@@ -262,7 +262,7 @@ def list_scope_records(cycle_id: int, scope_field: str, emp_id: str) -> list[dic
         from evaluation_record r
         join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
         where r.cycle_id = ? and s.{scope_field} = ? and r.emp_id != ?
-        order by s.sequence desc, s.level, r.emp_id
+        order by s.dept_level_4, s.level desc, r.emp_id
         """,
         (cycle_id, emp_id, emp_id),
     ).fetchall()

@@ -12,7 +12,7 @@
             <tr>
                 <td>{{ record.emp_id }}</td>
                 <td>{{ record.emp_name }}</td>
-                <td>{{ record.dept_name }}</td>
+                <td>{{ record.dept_level_4 or record.dept_name }}</td>
                 <td>{{ record.level }}</td>
                 <td>{{ status_label(record.status) }}</td>
                 <td>{{ record.current_subjective_level or '-' }}</td>

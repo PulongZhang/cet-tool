@@ -111,10 +111,8 @@
         <div>
             <select name="filter_level" onchange="location.href='/reviews/indirect/page?cycle_id={{ cycle_id }}&filter_status={{ filter_status }}&filter_level='+this.value+'&filter_level_range={{ filter_level_range }}&filter_dept={{ filter_dept }}'" style="width:100%; padding:8px;">
                 <option value="">全部职级</option>
-                {% for record in records %}
-                    {% if record.level and record.level not in (filter_level or '') %}
-                <option value="{{ record.level }}" {% if filter_level == record.level %}selected{% endif %}>{{ record.level }}</option>
-                    {% endif %}
+                {% for level in all_levels %}
+                <option value="{{ level }}" {% if filter_level == level %}selected{% endif %}>{{ level }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -128,11 +126,8 @@
         <div>
             <select name="filter_dept" onchange="location.href='/reviews/indirect/page?cycle_id={{ cycle_id }}&filter_status={{ filter_status }}&filter_level={{ filter_level }}&filter_level_range={{ filter_level_range }}&filter_dept='+this.value" style="width:100%; padding:8px;">
                 <option value="">全部部门</option>
-                {% for record in records %}
-                    {% set dept = record.dept_level_4 or record.dept_name %}
-                    {% if dept and dept not in (filter_dept or '') %}
+                {% for dept in all_depts %}
                 <option value="{{ dept }}" {% if filter_dept == dept %}selected{% endif %}>{{ dept }}</option>
-                    {% endif %}
                 {% endfor %}
             </select>
         </div>
