@@ -331,10 +331,33 @@ def bulk_update_status(cycle_id: int, scope_field: str, emp_id: str, from_status
 
 
 def submit_direct_report_drafts(cycle_id: int, manager_emp_id: str) -> int:
-    # 当以下情况时，跳过间接上级审阅环节，直接将状态变为 DEPT_HEAD_PENDING：
-    # 1. 间接上级为空（indirect_manager_id IS NULL 或 ''）
-    # 2. 间接上级和部门负责人是同一个人
-    cursor_skip = get_db().execute(
+    # 当以下情况时，跳过间接上级审阅和部门负责人确认环节，直接进入 HR_PENDING：
+    # 1. 没有部门负责人（dept_head_id IS NULL 或 ''）
+    # 2. 间接上级为空且和部门负责人是同一个人
+    # 没有部门负责人的员工默认与直接上级评级一致
+    cursor_skip_all = get_db().execute(
+        """
+        update evaluation_record
+        set status = 'HR_PENDING',
+            current_subjective_level = coalesce(current_subjective_level, initial_total_grade),
+            final_subjective_grade_1 = manager_score_1,
+            final_subjective_grade_2 = manager_score_2,
+            final_subjective_grade_3 = manager_score_3,
+            final_level = initial_total_grade,
+            submitted_at = datetime('now'),
+            updated_at = datetime('now')
+        where cycle_id = ?
+          and status = 'DIRECT_DRAFT'
+          and emp_id in (
+              select emp_id from cycle_employee_snapshot
+              where cycle_id = ? and direct_manager_id = ? and emp_id != ?
+                and (dept_head_id IS NULL OR dept_head_id = '')
+          )
+        """,
+        (cycle_id, cycle_id, manager_emp_id, manager_emp_id),
+    )
+    # 当间接上级和部门负责人是同一个人时，跳过间接上级审阅环节，直接变为 DEPT_HEAD_PENDING
+    cursor_skip_indirect = get_db().execute(
         """
         update evaluation_record
         set status = 'DEPT_HEAD_PENDING',
@@ -346,6 +369,7 @@ def submit_direct_report_drafts(cycle_id: int, manager_emp_id: str) -> int:
           and emp_id in (
               select emp_id from cycle_employee_snapshot
               where cycle_id = ? and direct_manager_id = ? and emp_id != ?
+                and (dept_head_id IS NOT NULL AND dept_head_id != '')
                 and (indirect_manager_id IS NULL OR indirect_manager_id = '' OR indirect_manager_id = dept_head_id)
           )
         """,
@@ -369,7 +393,7 @@ def submit_direct_report_drafts(cycle_id: int, manager_emp_id: str) -> int:
         """,
         (cycle_id, cycle_id, manager_emp_id, manager_emp_id),
     )
-    return cursor_skip.rowcount + cursor_normal.rowcount
+    return cursor_skip_all.rowcount + cursor_skip_indirect.rowcount + cursor_normal.rowcount
 
 
 def update_status(record_id: int, status: str) -> dict:
