@@ -59,7 +59,23 @@
                     {% elif record.status in ['SELF_PENDING', 'SELF_DRAFT'] %}
                     <div class="hint">等待员工提交自评后，直接上级才可评分。</div>
                     {% else %}
-                    <div class="hint">该记录已流转到后续环节，直接上级评分已锁定。</div>
+                    <div>
+                        <p class="muted">直接上级评分（已锁定）</p>
+                        <table style="margin-top:12px">
+                            <tbody>
+                                {% if record.use_management_dimensions %}<tr><th>工作能力和方法</th>{% else %}<tr><th>产出和质量</th>{% endif %}<td>{{ record.manager_score_1 or '-' }}</td></tr>
+                                {% if record.use_management_dimensions %}<tr><th>团队业绩和产出</th>{% else %}<tr><th>主动承担</th>{% endif %}<td>{{ record.manager_score_2 or '-' }}</td></tr>
+                                {% if record.use_management_dimensions %}<tr><th>个人关键任务</th>{% else %}<tr><th>易用性和可维护</th>{% endif %}<td>{{ record.manager_score_3 or '-' }}</td></tr>
+                                <tr><th>初始总评</th><td>{{ record.initial_total_grade or '-' }}</td></tr>
+                                <tr><th>当前初评等级</th><td>{{ record.current_subjective_level or '-' }}</td></tr>
+                            </tbody>
+                        </table>
+                        {% if record.manager_comment %}
+                        <p class="muted" style="margin-top:12px">整体评语</p>
+                        <div class="hint">{{ record.manager_comment }}</div>
+                        {% endif %}
+                        <div class="hint" style="margin-top:12px">该记录已流转到后续环节，直接上级评分已锁定。</div>
+                    </div>
                     {% endif %}
                 </div>
             </div>
