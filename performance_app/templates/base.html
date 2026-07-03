@@ -29,7 +29,7 @@
                     <h1>{% block page_title %}首页仪表盘{% endblock %}</h1>
                     <p>{% block page_subtitle %}真实页面：登录态、角色权限、数据和操作均由后端控制。{% endblock %}</p>
                 </div>
-                {% if all_cycles and all_cycles.length > 0 %}
+                {% if all_cycles and all_cycles | length > 0 %}
                 <div class="cycle-selector" style="margin-right: auto; margin-left: 16px;">
                     <label for="cycleSelect" style="font-size: 12px; color: #666;">考核周期：</label>
                     <select id="cycleSelect" onchange="changeCycle(this.value)" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
