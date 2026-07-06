@@ -165,20 +165,20 @@ def export_cycle_accounts(cycle_id: int):
     )
 
 
-@bp.get("/imports/<int:batch_id>/account-passwords.csv")
+@bp.get("/imports/<int:batch_id>/account-passwords.xlsx")
 def download_account_passwords(batch_id: int):
-    """下载本次导入新生成账号的初始密码 CSV。"""
+    """下载本次导入新生成账号的初始密码 Excel。"""
     from pathlib import Path
 
     from flask import current_app
 
     export_dir = Path(current_app.config["EXPORT_DIR"]).resolve()
-    file_path = export_dir / f"account_passwords_{batch_id}.csv"
+    file_path = export_dir / f"account_passwords_{batch_id}.xlsx"
     if not file_path.exists():
         return jsonify({"error": "password file not found"}), 404
     return send_file(
         file_path,
         as_attachment=True,
         download_name=file_path.name,
-        mimetype="text/csv",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )

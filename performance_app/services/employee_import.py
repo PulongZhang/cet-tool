@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 from pathlib import Path
 
 from flask import current_app
@@ -172,17 +171,28 @@ def role_map_for_rows(rows: list[dict]) -> dict[str, set[str]]:
     return roles
 
 
-def _write_password_csv(new_accounts: list[dict], batch_id: int) -> str:
-    """把本次新建账号的明文密码写入 CSV(UTF-8-BOM,Excel 友好),返回文件名。"""
+def _write_password_xlsx(new_accounts: list[dict], batch_id: int) -> str:
+    """把本次新建账号的明文密码写入 xlsx(账号清单格式),返回文件名。"""
+    from openpyxl import Workbook
+
     export_dir = Path(current_app.config["EXPORT_DIR"]).resolve()
     export_dir.mkdir(parents=True, exist_ok=True)
-    file_name = f"account_passwords_{batch_id}.csv"
+    file_name = f"account_passwords_{batch_id}.xlsx"
     file_path = export_dir / file_name
-    with file_path.open("w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.writer(f)
-        writer.writerow(["工号", "姓名", "登录账号", "初始密码"])
-        for acc in new_accounts:
-            writer.writerow([acc["emp_id"], acc["emp_name"], acc["username"], acc["password"]])
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "新增账号密码"
+    sheet.append(["工号", "姓名", "部门", "角色", "登录账号", "初始密码"])
+    for acc in new_accounts:
+        sheet.append([
+            acc["emp_id"],
+            acc["emp_name"],
+            acc.get("dept_name") or "-",
+            acc.get("roles") or "-",
+            acc["username"],
+            acc["password"],
+        ])
+    workbook.save(file_path)
     return file_name
 
 
@@ -293,13 +303,15 @@ def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operat
                 "emp_name": row["emp_name"],
                 "username": row["emp_id"],
                 "password": password,
+                "dept_name": row.get("dept_name") or "",
+                "roles": ",".join(sorted(roles_by_emp_id[row["emp_id"]])),
             })
 
     password_file_name = ""
     password_download_url = ""
     if new_accounts:
-        password_file_name = _write_password_csv(new_accounts, batch_id)
-        password_download_url = f"/imports/{batch_id}/account-passwords.csv"
+        password_file_name = _write_password_xlsx(new_accounts, batch_id)
+        password_download_url = f"/imports/{batch_id}/account-passwords.xlsx"
 
     update_import_batch_counts(batch_id, len(valid_rows), 0)
     get_db().commit()

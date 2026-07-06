@@ -173,7 +173,9 @@ def test_import_employees_records_duplicate_and_invalid_level_errors(tmp_path):
 
 
 def test_import_generates_unique_password_per_new_account(tmp_path):
-    import csv
+    from io import BytesIO
+
+    from openpyxl import load_workbook
 
     app = make_app(tmp_path)
     client = app.test_client()
@@ -191,11 +193,12 @@ def test_import_generates_unique_password_per_new_account(tmp_path):
 
     download = client.get(data["password_download_url"])
     assert download.status_code == 200
-    rows = list(csv.reader(download.data.decode("utf-8-sig").splitlines()))
-    assert rows[0] == ["工号", "姓名", "登录账号", "初始密码"]
+    sheet = load_workbook(BytesIO(download.data)).active
+    rows = [list(r) for r in sheet.iter_rows(values_only=True)]
+    assert rows[0] == ["工号", "姓名", "部门", "角色", "登录账号", "初始密码"]
     body = rows[1:]
     assert len(body) == 4
-    passwords = [row[3] for row in body]
+    passwords = [row[5] for row in body]
     assert len(set(passwords)) == 4  # 每个新员工密码互不相同
     assert {row[0] for row in body} == {"E001", "M001", "M002", "M003"}
 

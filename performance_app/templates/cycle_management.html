@@ -153,8 +153,8 @@ uploadBtn.addEventListener('click', function() {
             showError(`导入完成：成功 ${data.summary.success_count} 条，失败 ${data.summary.failed_count} 条`, data.errors);
         } else {
             const passwordHint = data.password_download_url
-                ? `每人独立随机初始密码，<a href="${data.password_download_url}">点击下载密码 CSV</a>`
-                : "每人独立随机初始密码（见 exports 目录的 account_passwords CSV）";
+                ? `每人独立随机初始密码，<a href="${data.password_download_url}">点击下载账号密码 Excel</a>`
+                : "每人独立随机初始密码（见 exports 目录的 account_passwords 文件）";
             showSuccess(`导入成功！共导入 ${data.summary.success_count} 名员工。系统已自动生成登录账号，${passwordHint}。`);
             employeeFile.value = '';
         }
