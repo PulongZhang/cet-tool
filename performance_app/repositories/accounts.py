@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import secrets
+import string
 from sqlite3 import Row
 
 from werkzeug.security import generate_password_hash
@@ -66,17 +68,27 @@ def create_account(emp_id: str, username: str, password: str, roles: list[str]) 
     return find_by_id(user_id)
 
 
-def ensure_account(emp_id: str, username: str, password: str, roles: list[str]) -> dict:
+PASSWORD_ALPHABET = string.ascii_letters + string.digits
+PASSWORD_LENGTH = 10
+
+
+def generate_random_password() -> str:
+    """生成长度为 10 的随机字母数字密码(无特殊字符,便于分发与输入)。"""
+    return "".join(secrets.choice(PASSWORD_ALPHABET) for _ in range(PASSWORD_LENGTH))
+
+
+def ensure_account(emp_id: str, username: str, password: str, roles: list[str]) -> tuple[dict, bool]:
+    """确保账号存在。返回 (user, created):created 为 True 表示本次新建,调用方据此收集初始密码。"""
     row = get_db().execute(
         "select id from user_account where emp_id = ?",
         (emp_id,),
     ).fetchone()
     if row is None:
-        return create_account(emp_id, username, password, roles)
+        return create_account(emp_id, username, password, roles), True
 
     for role in sorted(set(roles)):
         get_db().execute(
             "insert or ignore into user_role (user_id, role_code) values (?, ?)",
             (row["id"], role),
         )
-    return find_by_id(row["id"])
+    return find_by_id(row["id"]), False

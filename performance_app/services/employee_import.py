@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import csv
+from pathlib import Path
+
+from flask import current_app
+
 from performance_app.db import get_db
 from performance_app.domain.employees import derive_group_code
-from performance_app.repositories.accounts import ensure_account
+from performance_app.repositories.accounts import ensure_account, generate_random_password
 from performance_app.repositories.employees import (
     add_import_error,
     create_import_batch,
@@ -32,8 +37,6 @@ OPTIONAL_FIELDS = [
     "post",
     "roles",
 ]
-DEFAULT_PASSWORD = "ChangeMe123!"
-
 # 系统允许的角色列表
 VALID_ROLES = {"EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD", "HRBP", "ADMIN"}
 
@@ -169,6 +172,20 @@ def role_map_for_rows(rows: list[dict]) -> dict[str, set[str]]:
     return roles
 
 
+def _write_password_csv(new_accounts: list[dict], batch_id: int) -> str:
+    """把本次新建账号的明文密码写入 CSV(UTF-8-BOM,Excel 友好),返回文件名。"""
+    export_dir = Path(current_app.config["EXPORT_DIR"]).resolve()
+    export_dir.mkdir(parents=True, exist_ok=True)
+    file_name = f"account_passwords_{batch_id}.csv"
+    file_path = export_dir / file_name
+    with file_path.open("w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow(["工号", "姓名", "登录账号", "初始密码"])
+        for acc in new_accounts:
+            writer.writerow([acc["emp_id"], acc["emp_name"], acc["username"], acc["password"]])
+    return file_name
+
+
 def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operator_id: str) -> dict:
     batch_id = create_import_batch(cycle_id, "EMPLOYEE", file_name, len(rows), operator_id)
 
@@ -257,17 +274,32 @@ def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operat
     )
 
     roles_by_emp_id = role_map_for_rows(valid_rows)
+    new_accounts: list[dict] = []
     for row in valid_rows:
         upsert_snapshot(cycle_id, row, row["group_code"])
         # 所有人都需要创建 evaluation_record（走完整评分流程）
         # EXCLUDED 人员在最终计算排序时会被排除
         ensure_evaluation_record(cycle_id, row["emp_id"])
-        ensure_account(
+        password = generate_random_password()
+        _user, created = ensure_account(
             row["emp_id"],
             row["emp_id"],
-            DEFAULT_PASSWORD,
+            password,
             sorted(roles_by_emp_id[row["emp_id"]]),
         )
+        if created:
+            new_accounts.append({
+                "emp_id": row["emp_id"],
+                "emp_name": row["emp_name"],
+                "username": row["emp_id"],
+                "password": password,
+            })
+
+    password_file_name = ""
+    password_download_url = ""
+    if new_accounts:
+        password_file_name = _write_password_csv(new_accounts, batch_id)
+        password_download_url = f"/imports/{batch_id}/account-passwords.csv"
 
     update_import_batch_counts(batch_id, len(valid_rows), 0)
     get_db().commit()
@@ -280,4 +312,7 @@ def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operat
             "failed_count": 0,
         },
         "errors": [],
+        "new_account_count": len(new_accounts),
+        "password_file": password_file_name,
+        "password_download_url": password_download_url,
     }

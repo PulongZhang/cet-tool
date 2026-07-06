@@ -137,7 +137,6 @@ def export_cycle_accounts(cycle_id: int):
     sheet.append(ACCOUNT_EXPORT_HEADERS)
 
     # 数据行
-    DEFAULT_PASSWORD = "ChangeMe123!"
     for acc in accounts:
         sheet.append([
             acc["emp_id"],
@@ -151,7 +150,7 @@ def export_cycle_accounts(cycle_id: int):
             acc["direct_manager_id"] or "-",
             acc["indirect_manager_id"] or "-",
             acc["dept_head_id"] or "-",
-            DEFAULT_PASSWORD if acc["username"] else "-",  # 初始密码固定显示
+            "见导入批次密码CSV" if acc["username"] else "-",  # 真实初始密码仅在导入时生成,见 account_passwords_<batch>.csv
         ])
 
     output = BytesIO()
@@ -163,4 +162,23 @@ def export_cycle_accounts(cycle_id: int):
         as_attachment=True,
         download_name=f"cycle-{cycle_id}-accounts.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@bp.get("/imports/<int:batch_id>/account-passwords.csv")
+def download_account_passwords(batch_id: int):
+    """下载本次导入新生成账号的初始密码 CSV。"""
+    from pathlib import Path
+
+    from flask import current_app
+
+    export_dir = Path(current_app.config["EXPORT_DIR"]).resolve()
+    file_path = export_dir / f"account_passwords_{batch_id}.csv"
+    if not file_path.exists():
+        return jsonify({"error": "password file not found"}), 404
+    return send_file(
+        file_path,
+        as_attachment=True,
+        download_name=file_path.name,
+        mimetype="text/csv",
     )

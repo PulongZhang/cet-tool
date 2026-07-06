@@ -1,10 +1,15 @@
-import sqlite3
-
 from performance_app import create_app
+from performance_app.db import connect
 
 
 def make_app(tmp_path):
-    return create_app({"TESTING": True, "DATABASE": str(tmp_path / "app.sqlite3")})
+    return create_app(
+        {
+            "TESTING": True,
+            "DATABASE": str(tmp_path / "app.sqlite3"),
+            "EXPORT_DIR": str(tmp_path / "exports"),
+        }
+    )
 
 
 def create_cycle(client):
@@ -74,7 +79,7 @@ def test_import_employees_creates_snapshots_records_accounts_and_roles(tmp_path)
     assert response.status_code == 200
     assert response.get_json()["summary"] == {"total_count": 4, "success_count": 4, "failed_count": 0}
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         snapshots = connection.execute(
             "select emp_id, group_code from cycle_employee_snapshot order by emp_id"
         ).fetchall()
@@ -154,7 +159,7 @@ def test_import_employees_records_duplicate_and_invalid_level_errors(tmp_path):
         {"row_number": 4, "emp_id": "E002", "field_name": "level", "error_message": "Unsupported employee level: P11"},
     ]
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         errors = connection.execute(
             "select row_number, emp_id, field_name, error_message from import_error order by row_number"
         ).fetchall()
@@ -165,3 +170,79 @@ def test_import_employees_records_duplicate_and_invalid_level_errors(tmp_path):
         (4, "E002", "level", "Unsupported employee level: P11"),
     ]
     assert snapshot_count == 0
+
+
+def test_import_generates_unique_password_per_new_account(tmp_path):
+    import csv
+
+    app = make_app(tmp_path)
+    client = app.test_client()
+    create_cycle(client)
+
+    response = client.post(
+        "/cycles/1/employees/import",
+        json={"file_name": "employees.xlsx", "rows": valid_rows()},
+        headers={"X-Operator-Id": "hr001", "X-Operator-Name": "HR"},
+    )
+    data = response.get_json()
+    assert response.status_code == 200
+    assert data["new_account_count"] == 4
+    assert data["password_file"]
+
+    download = client.get(data["password_download_url"])
+    assert download.status_code == 200
+    rows = list(csv.reader(download.data.decode("utf-8-sig").splitlines()))
+    assert rows[0] == ["工号", "姓名", "登录账号", "初始密码"]
+    body = rows[1:]
+    assert len(body) == 4
+    passwords = [row[3] for row in body]
+    assert len(set(passwords)) == 4  # 每个新员工密码互不相同
+    assert {row[0] for row in body} == {"E001", "M001", "M002", "M003"}
+
+
+def test_reimport_does_not_reset_existing_account_passwords(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+    create_cycle(client)
+    rows = valid_rows()
+
+    first = client.post(
+        "/cycles/1/employees/import",
+        json={"file_name": "employees.xlsx", "rows": rows},
+        headers={"X-Operator-Id": "hr001"},
+    )
+    assert first.status_code == 200
+    assert first.get_json()["new_account_count"] == 4
+
+    second = client.post(
+        "/cycles/1/employees/import",
+        json={"file_name": "employees.xlsx", "rows": rows},
+        headers={"X-Operator-Id": "hr001"},
+    )
+    assert second.status_code == 200
+    assert second.get_json()["new_account_count"] == 0  # 账号已存在,不再生成新密码
+
+
+def test_export_cycle_accounts_initial_password_column_points_to_csv(tmp_path):
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    app = make_app(tmp_path)
+    client = app.test_client()
+    create_cycle(client)
+    client.post(
+        "/cycles/1/employees/import",
+        json={"file_name": "employees.xlsx", "rows": valid_rows()},
+        headers={"X-Operator-Id": "hr001"},
+    )
+
+    response = client.get("/cycles/1/accounts/export")
+    assert response.status_code == 200
+    sheet = load_workbook(BytesIO(response.data)).active
+    header = [cell.value for cell in sheet[1]]
+    assert header[-1] == "初始密码"
+    # 初始密码不再硬编码 ChangeMe123!,改为提示去查导入批次 CSV
+    values = [row[-1].value for row in sheet.iter_rows(min_row=2)]
+    assert all("ChangeMe" not in str(v) for v in values)
+    assert all("见导入批次密码CSV" in str(v) for v in values)
