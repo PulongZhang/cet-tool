@@ -87,17 +87,19 @@ def test_default_role_accounts_can_login(tmp_path):
     app = make_app(tmp_path)
     client = app.test_client()
 
-    expected_roles = {
-        "employee": ["EMPLOYEE"],
-        "direct": ["DIRECT_MANAGER"],
-        "indirect": ["INDIRECT_MANAGER"],
-        "dept": ["DEPT_HEAD"],
-        "hr": ["HRBP"],
-        "admin": ["ADMIN", "HRBP"],
-    }
-    for username, roles in expected_roles.items():
+    # 仅保留初始 hr 账号;其余演示账号不再内置
+    response = client.post("/auth/login", json={"username": "hr", "password": "admin123"})
+    assert response.status_code == 200
+    user = response.get_json()["user"]
+    assert user["emp_id"] == "hr"
+    assert user["username"] == "hr"
+    assert user["roles"] == ["HRBP"]
+
+
+def test_removed_demo_accounts_cannot_login(tmp_path):
+    app = make_app(tmp_path)
+    client = app.test_client()
+
+    for username in ("employee", "direct", "indirect", "dept", "admin"):
         response = client.post("/auth/login", json={"username": username, "password": "admin123"})
-        assert response.status_code == 200
-        assert response.get_json()["user"]["emp_id"] == username
-        assert response.get_json()["user"]["username"] == username
-        assert response.get_json()["user"]["roles"] == roles
+        assert response.status_code == 401

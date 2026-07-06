@@ -12,13 +12,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         SECRET_KEY="dev-only-change-before-production",
         DATABASE=str(Path("data") / "performance_review.sqlite3"),
         EXPORT_DIR=str(Path("exports")),
-        SEED_DEMO_DATA=True,
     )
 
     if test_config:
         app.config.update(test_config)
-    if app.config.get("TESTING") and (not test_config or "SEED_DEMO_DATA" not in test_config):
-        app.config["SEED_DEMO_DATA"] = False
 
     # 数据库加密密钥:生产从环境变量读;TESTING 模式自动用固定测试密钥(无需每个测试文件配置)
     if not app.config.get("DB_ENCRYPTION_KEY"):

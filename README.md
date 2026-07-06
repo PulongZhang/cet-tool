@@ -15,20 +15,15 @@ uv run python run.py
 uv run python -m flask --app performance_app run --debug
 ```
 
-启动时应用会读取 `DATABASE` 配置。默认数据库路径为 `data/performance_review.sqlite3`。如果数据库文件不存在，应用会自动创建父目录、SQLite 文件、业务表、索引、角色初始数据、内置角色账号、演示周期数据和 `schema_version` 记录；如果文件已存在，启动过程不会清空已有业务数据。
+启动时应用会读取 `DATABASE` 配置。默认数据库路径为 `data/performance_review.sqlite3`。如果数据库文件不存在，应用会自动创建父目录、SQLite 文件、业务表、索引、角色初始数据和 `schema_version` 记录；如果文件已存在，启动过程不会清空已有业务数据。
 
-内置账号默认密码均为 `admin123`：
+首次启动**仅创建一个初始 HR 账号**，用于登录后导入真实员工花名册：
 
-| 用户名 | 角色 |
-|---|---|
-| `employee` | EMPLOYEE |
-| `direct` | DIRECT_MANAGER |
-| `indirect` | INDIRECT_MANAGER |
-| `dept` | DEPT_HEAD |
-| `hr` | HRBP |
-| `admin` | ADMIN + HRBP |
+| 用户名 | 密码 | 角色 |
+|---|---|---|
+| `hr` | `admin123` | HRBP |
 
-默认启动会在空库中创建 `2026-Q2 演示周期`，并内置一条可串完整流程的上下级关系：`employee` 的直接上级是 `direct`，间接上级是 `indirect`，部门负责人是 `dept`；`hr` 和 `admin` 可进入 HR/管理页面导入客观数据、计算和确认结果。若库中已存在周期，则不会额外追加演示周期。
+> 该账号具备 HRBP 角色，可完成周期管理、员工 / 客观数据导入、计算与结果确认、导出等全部 HR 操作。**演示周期与演示上下级账号(employee/direct/indirect/dept/admin)已移除**——真实员工账号由 HR 导入花名册时自动生成，每人独立随机密码(导入完成返回 CSV 下载链接)。请登录后尽快修改 `hr` 默认密码。
 
 ## 数据库加密
 

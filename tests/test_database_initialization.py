@@ -1,7 +1,7 @@
 from werkzeug.security import check_password_hash
 
 from performance_app import create_app
-from performance_app.db import connect
+from performance_app.db import SCHEMA_VERSION, connect
 
 
 EXPECTED_TABLES = {
@@ -45,26 +45,25 @@ def test_create_app_creates_sqlite_file_and_schema(tmp_path):
             row[0]
             for row in connection.execute("select role_code from role_catalog").fetchall()
         }
-        built_in_accounts = {}
-        for username in ("employee", "direct", "indirect", "dept", "hr", "admin"):
-            account = connection.execute(
-                "select id, emp_id, username, password_hash, status from user_account where username = ?",
-                (username,),
-            ).fetchone()
-            account_roles = {
-                row[0]
-                for row in connection.execute(
-                    """
-                    select role_code
-                    from user_role
-                    where user_id = ?
-                    """,
-                    (account[0],),
-                ).fetchall()
-            }
-            built_in_accounts[username] = (account, account_roles)
+        usernames = {
+            row[0]
+            for row in connection.execute("select username from user_account").fetchall()
+        }
+        hr = connection.execute(
+            "select id, emp_id, username, password_hash, status from user_account where username = 'hr'"
+        ).fetchone()
+        hr_roles = {
+            row[0]
+            for row in connection.execute(
+                "select role_code from user_role where user_id = ?", (hr[0],)
+            ).fetchall()
+        }
+        cycle_count = connection.execute("select count(*) from evaluation_cycle").fetchone()[0]
+        snapshot_count = connection.execute(
+            "select count(*) from cycle_employee_snapshot"
+        ).fetchone()[0]
 
-    assert version == 1
+    assert version == SCHEMA_VERSION
     assert roles == {
         "EMPLOYEE",
         "DIRECT_MANAGER",
@@ -73,65 +72,16 @@ def test_create_app_creates_sqlite_file_and_schema(tmp_path):
         "HRBP",
         "ADMIN",
     }
-    expected_accounts = {
-        "employee": {"EMPLOYEE"},
-        "direct": {"DIRECT_MANAGER"},
-        "indirect": {"INDIRECT_MANAGER"},
-        "dept": {"DEPT_HEAD"},
-        "hr": {"HRBP"},
-        "admin": {"ADMIN", "HRBP"},
-    }
-    for username, expected_roles in expected_accounts.items():
-        account, account_roles = built_in_accounts[username]
-        assert account[1] == username
-        assert account[2] == username
-        assert check_password_hash(account[3], "admin123")
-        assert account[4] == "ACTIVE"
-        assert account_roles == expected_roles
-
-
-def test_create_app_seeds_demo_workflow_data(tmp_path):
-    db_path = tmp_path / "performance_review.sqlite3"
-
-    app = create_app({"TESTING": True, "DATABASE": str(db_path), "SEED_DEMO_DATA": True})
-    key = app.config["DB_ENCRYPTION_KEY"]
-
-    with connect(db_path, key) as connection:
-        cycle = connection.execute(
-            "select id, cycle_name, status from evaluation_cycle where cycle_name = '2026-Q2 演示周期'"
-        ).fetchone()
-        snapshots = connection.execute(
-            """
-            select emp_id, emp_name, group_code, direct_manager_id, indirect_manager_id, dept_head_id
-            from cycle_employee_snapshot
-            where cycle_id = ?
-            order by emp_id
-            """,
-            (cycle[0],),
-        ).fetchall()
-        records = connection.execute(
-            "select emp_id, status from evaluation_record where cycle_id = ? order by emp_id",
-            (cycle[0],),
-        ).fetchall()
-        objective = connection.execute(
-            "select emp_id, diligence_level, discipline_level, learning_level from objective_data where cycle_id = ? and emp_id = 'employee'",
-            (cycle[0],),
-        ).fetchone()
-
-    assert cycle[1:] == ("2026-Q2 演示周期", "ACTIVE")
-    assert snapshots == [
-        ("dept", "内置部门负责人", "MANAGEMENT", "dept", "dept", "dept"),
-        ("direct", "内置直接上级", "MANAGEMENT", "indirect", "dept", "dept"),
-        ("employee", "内置演示员工", "EMPLOYEE_P4_10", "direct", "indirect", "dept"),
-        ("indirect", "内置间接上级", "MANAGEMENT", "dept", "dept", "dept"),
-    ]
-    assert records == [
-        ("dept", "SELF_PENDING"),
-        ("direct", "SELF_PENDING"),
-        ("employee", "SELF_PENDING"),
-        ("indirect", "SELF_PENDING"),
-    ]
-    assert objective == ("employee", "A", "A+", "D")
+    # 仅保留初始 hr 账号;不再创建演示员工/上下级/管理员账号
+    assert usernames == {"hr"}
+    assert hr[1] == "hr"
+    assert hr[2] == "hr"
+    assert check_password_hash(hr[3], "admin123")
+    assert hr[4] == "ACTIVE"
+    assert hr_roles == {"HRBP"}
+    # 不再 seed 演示周期 / 演示员工快照
+    assert cycle_count == 0
+    assert snapshot_count == 0
 
 
 def test_create_app_does_not_destroy_existing_database(tmp_path):
