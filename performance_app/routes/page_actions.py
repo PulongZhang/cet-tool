@@ -22,7 +22,7 @@ from performance_app.services.calculation_runner import (
     calculate_cycle,
     finalize_cycle_results,
 )
-from performance_app.services.export_files import create_cycle_export
+from performance_app.services.export_files import create_cycle_export, create_process_export
 from performance_app.services.objective_import import import_objective_rows
 from performance_app.services.excel_import import parse_objective_workbook
 
@@ -367,6 +367,18 @@ def page_export_final():
     cycle_id = int(request.form["cycle_id"])
     user = current_page_user()
     export = create_cycle_export(cycle_id, "final", user["emp_id"], user["username"])
+    session["export_download_url"] = export["download_url"]
+    session["export_file_name"] = export["file_name"]
+    return redirect_with_cycle("/results", cycle_id)
+
+
+@bp.post("/page/export-process")
+@role_required("HRBP", "ADMIN")
+def page_export_process():
+    from flask import session
+    cycle_id = int(request.form["cycle_id"])
+    user = current_page_user()
+    export = create_process_export(cycle_id, user["emp_id"], user["username"])
     session["export_download_url"] = export["download_url"]
     session["export_file_name"] = export["file_name"]
     return redirect_with_cycle("/results", cycle_id)
