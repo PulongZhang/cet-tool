@@ -1,6 +1,7 @@
 import sqlite3
 
 from performance_app import create_app
+from performance_app.db import connect
 
 
 def make_app(tmp_path):
@@ -120,12 +121,12 @@ def seed_two_reports(client):
 
 
 def user_id(app, emp_id):
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         return connection.execute("select id from user_account where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
 def record_id(app, emp_id):
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         return connection.execute("select id from evaluation_record where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
@@ -181,7 +182,7 @@ def test_direct_manager_batch_submit_requires_all_reports_ready(tmp_path):
     assert submitted.status_code == 200
     assert submitted.get_json() == {"updated_count": 2}
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         statuses = connection.execute("select emp_id, status from evaluation_record where emp_id in ('E001', 'E002') order by emp_id").fetchall()
     assert statuses == [("E001", "INDIRECT_PENDING"), ("E002", "INDIRECT_PENDING")]
 
@@ -216,7 +217,7 @@ def test_indirect_and_dept_submit_require_full_scope_ready(tmp_path):
         "blocking_records": [{"record_id": record_id(app, "E002"), "emp_id": "E002", "status": "DIRECT_PENDING"}],
     }
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute("update evaluation_record set status = 'DEPT_HEAD_PENDING' where emp_id = 'E001'")
         connection.execute("update evaluation_record set status = 'INDIRECT_PENDING' where emp_id = 'E002'")
         connection.commit()
@@ -275,7 +276,7 @@ def import_objectives(client):
 
 
 def objective_id(app, emp_id):
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         return connection.execute("select id from objective_data where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
@@ -301,7 +302,7 @@ def test_objective_correction_requires_reason_and_audits(tmp_path):
     assert corrected.get_json()["objective"]["learning_level"] == "A"
     assert corrected.get_json()["objective"]["corrected"] == 1
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         row = connection.execute(
             "select diligence_level, learning_level, corrected, correction_reason from objective_data where id = ?",
             (e001_objective_id,),
@@ -323,7 +324,7 @@ def test_reimport_objectives_invalidates_calculated_results(tmp_path):
     reimported = import_objectives(client)
     assert reimported.status_code == 200
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         rows = connection.execute(
             "select emp_id, status, weighted_score, rank_in_group, suggested_level, final_level from evaluation_record where emp_id in ('E001', 'E002') order by emp_id"
         ).fetchall()
@@ -355,7 +356,7 @@ def test_finalize_results_locks_status_but_allows_audited_final_adjustment(tmp_p
     assert finalized.status_code == 200
     assert finalized.get_json() == {"updated_count": 2}
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         status_rows = connection.execute(
             "select emp_id, status from evaluation_record where emp_id in ('E001', 'E002') order by emp_id"
         ).fetchall()
@@ -370,7 +371,7 @@ def test_finalize_results_locks_status_but_allows_audited_final_adjustment(tmp_p
     assert adjusted.status_code == 200
     assert adjusted.get_json()["record"]["final_level"] == "A"
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         after_row = connection.execute(
             "select status, weighted_score, final_level from evaluation_record where emp_id = 'E001'"
         ).fetchone()

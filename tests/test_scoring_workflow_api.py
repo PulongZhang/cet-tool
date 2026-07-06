@@ -1,6 +1,7 @@
 import sqlite3
 
 from performance_app import create_app
+from performance_app.db import connect
 
 
 def make_app(tmp_path):
@@ -55,12 +56,12 @@ def seed_cycle_people(client):
 
 
 def user_id(app, emp_id):
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         return connection.execute("select id from user_account where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
 def record_id(app, emp_id):
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         return connection.execute("select id from evaluation_record where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
@@ -135,7 +136,7 @@ def test_employee_self_review_api_locks_after_submit(tmp_path):
 
     assert draft_again.status_code == 409
     assert draft_again.get_json() == {"error": "self review is locked"}
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         row = connection.execute(
             "select self_summary, self_score_1, self_score_2, self_score_3, status from evaluation_record where id = ?",
             (employee_record_id,),
@@ -215,7 +216,7 @@ def test_indirect_adjustment_distribution_submit_and_withdraw(tmp_path):
     assert submitted.status_code == 200
     assert submitted.get_json()["updated_count"] == 1
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         status = connection.execute("select status from evaluation_record where id = ?", (employee_record_id,)).fetchone()[0]
         log_count = connection.execute("select count(*) from grade_adjustment_log where record_id = ?", (employee_record_id,)).fetchone()[0]
     assert status == "DEPT_HEAD_PENDING"
@@ -247,6 +248,6 @@ def test_dept_head_submit_moves_records_to_hr_pending(tmp_path):
     assert submitted.status_code == 200
     assert submitted.get_json()["updated_count"] == 1
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         status = connection.execute("select status from evaluation_record where emp_id = 'E001'").fetchone()[0]
     assert status == "HR_PENDING"

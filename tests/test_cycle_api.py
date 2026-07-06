@@ -1,6 +1,7 @@
 import sqlite3
 
 from performance_app import create_app
+from performance_app.db import connect
 
 
 def make_app(tmp_path):
@@ -74,7 +75,7 @@ def test_cycle_actions_write_audit_log(tmp_path):
         headers={"X-Operator-Id": "admin", "X-Operator-Name": "管理员"},
     )
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         rows = connection.execute(
             "select operator_id, operator_name, action, target_type, target_id from audit_log"
         ).fetchall()
@@ -97,7 +98,7 @@ def test_delete_preparing_cycle_and_reject_active_cycle_delete(tmp_path):
     assert active_delete.status_code == 409
     assert active_delete.get_json() == {"error": "only PREPARING cycles can be deleted"}
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         cycles = connection.execute("select cycle_name from evaluation_cycle order by id").fetchall()
         delete_audit_count = connection.execute("select count(*) from audit_log where action = 'DELETE_CYCLE'").fetchone()[0]
     assert cycles == [("2026-Q3",)]
@@ -110,7 +111,7 @@ def test_delete_preparing_cycle_removes_non_cascading_import_batch(tmp_path):
     client.post("/cycles", json={"cycle_name": "2026-Q2", "start_date": "2026-04-01", "end_date": "2026-06-30"})
 
     # 准备阶段导入数据会在 import_batch 留下指向该周期的记录；该表无 on delete cascade
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute(
             """
@@ -123,7 +124,7 @@ def test_delete_preparing_cycle_removes_non_cascading_import_batch(tmp_path):
 
     assert deleted.status_code == 200
     assert deleted.get_json() == {"deleted": True}
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         assert connection.execute("select count(*) from evaluation_cycle").fetchone()[0] == 0
         assert connection.execute("select count(*) from import_batch").fetchone()[0] == 0
 
@@ -134,7 +135,7 @@ def test_delete_preparing_cycle_removes_non_cascading_grade_adjustment_log(tmp_p
     client.post("/cycles", json={"cycle_name": "2026-Q2", "start_date": "2026-04-01", "end_date": "2026-06-30"})
 
     # grade_adjustment_log 同时引用 evaluation_cycle 与 evaluation_record，且均无 on delete cascade
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute(
             "insert into evaluation_record (cycle_id, emp_id, status) values (1, 'emp001', 'SELF_PENDING')"
@@ -153,6 +154,6 @@ def test_delete_preparing_cycle_removes_non_cascading_grade_adjustment_log(tmp_p
 
     assert deleted.status_code == 200
     assert deleted.get_json() == {"deleted": True}
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         assert connection.execute("select count(*) from evaluation_cycle").fetchone()[0] == 0
         assert connection.execute("select count(*) from grade_adjustment_log").fetchone()[0] == 0

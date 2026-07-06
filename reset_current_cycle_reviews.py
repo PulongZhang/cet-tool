@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 import shutil
-import sqlite3
 from datetime import datetime
 from pathlib import Path
+
+from performance_app.db import connect
 
 DEFAULT_DATABASE = Path("data") / "performance_review.sqlite3"
 
@@ -15,7 +17,7 @@ def backup_database(db_path: Path) -> Path:
     return backup_path
 
 
-def active_snapshot_emp_ids(connection: sqlite3.Connection, cycle_id: int) -> list[str]:
+def active_snapshot_emp_ids(connection, cycle_id: int) -> list[str]:
     columns = {
         row[1]
         for row in connection.execute("pragma table_info(cycle_employee_snapshot)").fetchall()
@@ -33,30 +35,40 @@ def active_snapshot_emp_ids(connection: sqlite3.Connection, cycle_id: int) -> li
     return [row[0] for row in rows]
 
 
-def reset_current_cycle_reviews(database_path: str | Path = DEFAULT_DATABASE) -> dict:
+def reset_current_cycle_reviews(
+    database_path: str | Path = DEFAULT_DATABASE,
+    encryption_key: str | None = None,
+) -> dict:
     db_path = Path(database_path)
     if not db_path.exists():
         raise FileNotFoundError(f"Database file does not exist: {db_path}")
 
-    with sqlite3.connect(db_path) as connection:
-        connection.execute("pragma foreign_keys = on")
-        cycle = connection.execute(
-            "select id, cycle_name from evaluation_cycle where status = 'ACTIVE' order by id desc limit 1"
-        ).fetchone()
-        if cycle is None:
-            return {
-                "cycle_id": None,
-                "cycle_name": None,
-                "backup_path": None,
-                "deleted_adjustment_logs": 0,
-                "deleted_evaluation_records": 0,
-                "created_evaluation_records": 0,
-            }
+    key = encryption_key or os.environ.get("DB_ENCRYPTION_KEY")
+    if not key:
+        raise RuntimeError(
+            "未设置 DB_ENCRYPTION_KEY 环境变量。请运行 "
+            "`python -m performance_app.generate_key` 生成并通过环境变量提供。"
+        )
+
+    # 读当前周期:显式 close 释放文件句柄,避免 Windows 上后续 backup 被文件锁阻塞
+    read_conn = connect(str(db_path), key)
+    cycle = read_conn.execute(
+        "select id, cycle_name from evaluation_cycle where status = 'ACTIVE' order by id desc limit 1"
+    ).fetchone()
+    read_conn.close()
+    if cycle is None:
+        return {
+            "cycle_id": None,
+            "cycle_name": None,
+            "backup_path": None,
+            "deleted_adjustment_logs": 0,
+            "deleted_evaluation_records": 0,
+            "created_evaluation_records": 0,
+        }
 
     backup_path = backup_database(db_path)
 
-    with sqlite3.connect(db_path) as connection:
-        connection.execute("pragma foreign_keys = on")
+    with connect(str(db_path), key) as connection:
         try:
             cycle_id, cycle_name = cycle
             emp_ids = active_snapshot_emp_ids(connection, cycle_id)

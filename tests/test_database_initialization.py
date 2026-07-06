@@ -1,8 +1,7 @@
-import sqlite3
-
 from werkzeug.security import check_password_hash
 
 from performance_app import create_app
+from performance_app.db import connect
 
 
 EXPECTED_TABLES = {
@@ -21,8 +20,8 @@ EXPECTED_TABLES = {
 }
 
 
-def table_names(db_path):
-    with sqlite3.connect(db_path) as connection:
+def table_names(db_path, key):
+    with connect(db_path, key) as connection:
         rows = connection.execute(
             "select name from sqlite_master where type = 'table'"
         ).fetchall()
@@ -32,12 +31,13 @@ def table_names(db_path):
 def test_create_app_creates_sqlite_file_and_schema(tmp_path):
     db_path = tmp_path / "performance_review.sqlite3"
 
-    create_app({"TESTING": True, "DATABASE": str(db_path)})
+    app = create_app({"TESTING": True, "DATABASE": str(db_path)})
+    key = app.config["DB_ENCRYPTION_KEY"]
 
     assert db_path.exists()
-    assert EXPECTED_TABLES.issubset(table_names(db_path))
+    assert EXPECTED_TABLES.issubset(table_names(db_path, key))
 
-    with sqlite3.connect(db_path) as connection:
+    with connect(db_path, key) as connection:
         version = connection.execute(
             "select version from schema_version order by id desc limit 1"
         ).fetchone()[0]
@@ -93,9 +93,10 @@ def test_create_app_creates_sqlite_file_and_schema(tmp_path):
 def test_create_app_seeds_demo_workflow_data(tmp_path):
     db_path = tmp_path / "performance_review.sqlite3"
 
-    create_app({"TESTING": True, "DATABASE": str(db_path), "SEED_DEMO_DATA": True})
+    app = create_app({"TESTING": True, "DATABASE": str(db_path), "SEED_DEMO_DATA": True})
+    key = app.config["DB_ENCRYPTION_KEY"]
 
-    with sqlite3.connect(db_path) as connection:
+    with connect(db_path, key) as connection:
         cycle = connection.execute(
             "select id, cycle_name, status from evaluation_cycle where cycle_name = '2026-Q2 演示周期'"
         ).fetchone()
@@ -135,9 +136,10 @@ def test_create_app_seeds_demo_workflow_data(tmp_path):
 
 def test_create_app_does_not_destroy_existing_database(tmp_path):
     db_path = tmp_path / "performance_review.sqlite3"
-    create_app({"TESTING": True, "DATABASE": str(db_path)})
+    app = create_app({"TESTING": True, "DATABASE": str(db_path)})
+    key = app.config["DB_ENCRYPTION_KEY"]
 
-    with sqlite3.connect(db_path) as connection:
+    with connect(db_path, key) as connection:
         connection.execute(
             """
             insert into evaluation_cycle
@@ -150,7 +152,7 @@ def test_create_app_does_not_destroy_existing_database(tmp_path):
 
     create_app({"TESTING": True, "DATABASE": str(db_path)})
 
-    with sqlite3.connect(db_path) as connection:
+    with connect(db_path, key) as connection:
         cycles = connection.execute("select cycle_name from evaluation_cycle order by id").fetchall()
 
     assert cycles == [("2026-Q2",)]

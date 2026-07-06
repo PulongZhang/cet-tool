@@ -30,6 +30,26 @@ uv run python -m flask --app performance_app run --debug
 
 默认启动会在空库中创建 `2026-Q2 演示周期`，并内置一条可串完整流程的上下级关系：`employee` 的直接上级是 `direct`，间接上级是 `indirect`，部门负责人是 `dept`；`hr` 和 `admin` 可进入 HR/管理页面导入客观数据、计算和确认结果。若库中已存在周期，则不会额外追加演示周期。
 
+## 数据库加密
+
+数据库文件采用 SQLCipher(AES-256)整库加密,文件脱离应用后无法直接读取。首次部署:
+
+1. 生成密钥(**妥善保管,丢失则数据不可恢复**):
+   ```bash
+   uv run python -m performance_app.generate_key
+   ```
+2. 把输出的 `DB_ENCRYPTION_KEY=<64位hex>` 写入不入库的 `.env` 或系统环境变量。
+3. 若已有明文库,先迁移(脚本会自动备份明文为 `*.bak-plaintext-<时间戳>` 并做行数校验):
+   ```bash
+   DB_ENCRYPTION_KEY=<密钥> uv run python migrate_to_encrypted_db.py
+   ```
+4. 启动:
+   ```bash
+   DB_ENCRYPTION_KEY=<密钥> uv run python run.py
+   ```
+
+密钥缺失或错误时,应用在启动连接阶段即失败(`file is not a database` 或 `未设置 DB_ENCRYPTION_KEY`)。
+
 ## 运维脚本
 
 如需把当前进行中周期恢复到员工可重新填写自评的初始状态，可执行：

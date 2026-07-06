@@ -1,4 +1,5 @@
 import sqlite3
+from performance_app.db import connect
 from io import BytesIO
 
 from openpyxl import Workbook, load_workbook
@@ -65,7 +66,7 @@ def test_employee_template_and_upload_xlsx(tmp_path):
     assert uploaded.status_code == 200
     assert uploaded.get_json()["summary"] == {"total_count": 4, "success_count": 4, "failed_count": 0}
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         snapshot_count = connection.execute("select count(*) from cycle_employee_snapshot").fetchone()[0]
     assert snapshot_count == 4
 
@@ -123,7 +124,7 @@ def test_objective_template_and_upload_xlsx(tmp_path):
     assert uploaded.status_code == 200
     assert uploaded.get_json()["summary"] == {"total_count": 2, "success_count": 2, "failed_count": 0}
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         objective_rows = connection.execute(
             "select emp_id, diligence_level, discipline_level from objective_data order by emp_id"
         ).fetchall()

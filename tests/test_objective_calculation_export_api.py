@@ -1,4 +1,5 @@
 import sqlite3
+from performance_app.db import connect
 from io import BytesIO
 
 from openpyxl import load_workbook
@@ -104,7 +105,7 @@ def test_import_objective_data_converts_and_persists_levels(tmp_path):
     assert response.status_code == 200
     assert response.get_json()["summary"] == {"total_count": 2, "success_count": 2, "failed_count": 0}
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         objective_rows = connection.execute(
             """
             select emp_id, diligence_raw_total, diligence_month_avg, diligence_level,
@@ -162,7 +163,7 @@ def test_import_objective_data_records_row_errors(tmp_path):
         {"row_number": 3, "emp_id": "E999", "field_name": "emp_id", "error_message": "emp_id does not exist in cycle"},
     ]
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         objective_count = connection.execute("select count(*) from objective_data").fetchone()[0]
         errors = connection.execute(
             "select row_number, emp_id, field_name, error_message from import_error order by row_number"
@@ -176,12 +177,12 @@ def test_import_objective_data_records_row_errors(tmp_path):
 
 
 def user_id(app, emp_id):
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         return connection.execute("select id from user_account where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
 def record_id(app, emp_id):
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         return connection.execute("select id from evaluation_record where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
@@ -280,7 +281,7 @@ def test_calculate_cycle_persists_ranked_results_and_detail(tmp_path):
         "learning": 4.3,
     }
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         audit_count = connection.execute("select count(*) from audit_log where action = 'CALCULATE_RESULTS'").fetchone()[0]
     assert audit_count == 1
 
@@ -323,7 +324,7 @@ def test_hr_final_level_adjustment_requires_reason_and_writes_log(tmp_path):
     assert adjusted.get_json()["record"]["suggested_level"] == "B+"
     assert adjusted.get_json()["record"]["final_level"] == "A"
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         adjustment = connection.execute(
             "select stage, adjustment_type, field_name, before_value, after_value, reason from grade_adjustment_log"
         ).fetchone()
@@ -377,6 +378,6 @@ def test_export_initial_and_final_results_to_xlsx(tmp_path):
     final_rows = list(final_workbook["结果总览"].iter_rows(values_only=True))
     assert final_rows[1] == ("E001", "李四", "平台研发部", "EMPLOYEE_P4_10", 89.9, 1, 2, "B+", "A")
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         audit_count = connection.execute("select count(*) from audit_log where action = 'EXPORT_EXCEL'").fetchone()[0]
     assert audit_count == 2

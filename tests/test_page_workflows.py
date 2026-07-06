@@ -1,6 +1,7 @@
 import sqlite3
 
 from werkzeug.security import generate_password_hash
+from performance_app.db import connect
 
 from performance_app import create_app
 
@@ -82,7 +83,7 @@ def seed_cycle_people(client):
 
 
 def record_id(app, emp_id):
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         return connection.execute("select id from evaluation_record where emp_id = ?", (emp_id,)).fetchone()[0]
 
 
@@ -112,7 +113,7 @@ def test_dashboard_flow_progress_updates_from_record_statuses(tmp_path):
     seed_user(app, "HR001", "hr_user", ("HRBP",))
     client = app.test_client()
     seed_cycle_people(client)
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute("update evaluation_record set status = 'DIRECT_PENDING' where emp_id = 'E001'")
         connection.commit()
     login(client, "hr_user")
@@ -183,7 +184,7 @@ def test_cycle_management_page_actions_manage_cycle_statuses(tmp_path):
     assert started.status_code == 302
     assert closed.status_code == 302
     assert deleted.status_code == 302
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         cycles = connection.execute("select cycle_name, status from evaluation_cycle order by id").fetchall()
         actions = connection.execute("select action from audit_log order by id").fetchall()
     assert cycles == [("2026-Q2", "CLOSED")]
@@ -219,7 +220,7 @@ def test_self_review_page_renders_record_and_submit_form_updates_status(tmp_path
     )
     assert submitted.status_code == 302
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         status = connection.execute("select status from evaluation_record where emp_id = 'E001'").fetchone()[0]
     assert status == "DIRECT_PENDING"
 
@@ -302,7 +303,7 @@ def test_self_review_page_actions_ignore_locked_record(tmp_path):
         follow_redirects=False,
     )
 
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         row = connection.execute(
             "select self_summary, self_score_1, self_score_2, self_score_3, status from evaluation_record where id = ?",
             (locked_record_id,),
@@ -316,7 +317,7 @@ def test_direct_manager_page_renders_per_report_scoring_forms(tmp_path):
     seed_user(app, "M001", "manager", ("DIRECT_MANAGER",))
     client = app.test_client()
     seed_cycle_people(client)
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute(
             "update evaluation_record set status = 'DIRECT_PENDING', self_summary = '完成核心工作' where emp_id = 'E001'"
         )
@@ -340,7 +341,7 @@ def test_direct_manager_rating_selects_use_consistent_order(tmp_path):
     seed_user(app, "M001", "manager", ("DIRECT_MANAGER",))
     client = app.test_client()
     seed_cycle_people(client)
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute("update evaluation_record set status = 'DIRECT_PENDING' where emp_id = 'E001'")
         connection.commit()
     login(client, "manager")
@@ -375,7 +376,7 @@ def test_indirect_review_page_adjusts_record_level_from_form(tmp_path):
     seed_user(app, "M002", "indirect_user", ("INDIRECT_MANAGER",))
     client = app.test_client()
     seed_cycle_people(client)
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute("update evaluation_record set status = 'INDIRECT_PENDING', current_subjective_level = 'A' where emp_id = 'E001'")
         connection.commit()
     login(client, "indirect_user")
@@ -400,7 +401,7 @@ def test_indirect_review_page_adjusts_record_level_from_form(tmp_path):
     assert "调整建议等级" in html
     assert option_values_after(html, "调整建议等级") == SUBJECTIVE_LEVELS
     assert adjusted.status_code == 302
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         row = connection.execute("select current_subjective_level from evaluation_record where emp_id = 'E001'").fetchone()
         log_count = connection.execute("select count(*) from grade_adjustment_log where record_id = ?", (record_id(app, "E001"),)).fetchone()[0]
     assert row == ("B+",)
@@ -413,7 +414,7 @@ def test_review_pages_render_scoped_records_and_distribution(tmp_path):
     seed_user(app, "M003", "dept_user", ("DEPT_HEAD",))
     client = app.test_client()
     seed_cycle_people(client)
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute("update evaluation_record set status = 'INDIRECT_PENDING', current_subjective_level = 'A' where emp_id = 'E001'")
         connection.commit()
 
@@ -424,7 +425,7 @@ def test_review_pages_render_scoped_records_and_distribution(tmp_path):
     assert "/page/indirect-submit" in indirect.get_data(as_text=True)
 
     client.post("/logout")
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute("update evaluation_record set status = 'DEPT_HEAD_PENDING', current_subjective_level = 'A' where emp_id = 'E001'")
         connection.commit()
     login(client, "dept_user")
@@ -439,7 +440,7 @@ def test_dept_review_rating_select_uses_consistent_order(tmp_path):
     seed_user(app, "M003", "dept_user", ("DEPT_HEAD",))
     client = app.test_client()
     seed_cycle_people(client)
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute("update evaluation_record set status = 'DEPT_HEAD_PENDING', current_subjective_level = 'B+' where emp_id = 'E001'")
         connection.commit()
     login(client, "dept_user")
@@ -485,7 +486,7 @@ def test_hr_results_page_renders_calculated_records(tmp_path):
     client = app.test_client()
     seed_cycle_people(client)
     login(client, "hr_user")
-    with sqlite3.connect(app.config["DATABASE"]) as connection:
+    with connect(app.config["DATABASE"], app.config["DB_ENCRYPTION_KEY"]) as connection:
         connection.execute(
             """
             update evaluation_record

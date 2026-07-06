@@ -1,7 +1,9 @@
-import sqlite3
 from pathlib import Path
 
+from performance_app.db import connect
 from reset_current_cycle_reviews import reset_current_cycle_reviews
+
+KEY = "a" * 64  # 测试用固定密钥
 
 
 def create_schema(connection):
@@ -43,7 +45,7 @@ def create_schema(connection):
 
 
 def seed_data(db_path):
-    with sqlite3.connect(db_path) as connection:
+    with connect(db_path, KEY) as connection:
         create_schema(connection)
         connection.execute("insert into evaluation_cycle (id, cycle_name, status) values (1, '2026-Q2', 'ACTIVE')")
         connection.execute("insert into evaluation_cycle (id, cycle_name, status) values (2, '2026-Q1', 'CLOSED')")
@@ -63,7 +65,7 @@ def test_reset_current_cycle_reviews_backs_up_deletes_and_recreates_active_cycle
     db_path = tmp_path / "performance_review.sqlite3"
     seed_data(db_path)
 
-    result = reset_current_cycle_reviews(db_path)
+    result = reset_current_cycle_reviews(db_path, KEY)
 
     assert result["cycle_id"] == 1
     assert result["cycle_name"] == "2026-Q2"
@@ -71,7 +73,7 @@ def test_reset_current_cycle_reviews_backs_up_deletes_and_recreates_active_cycle
     assert result["deleted_adjustment_logs"] == 1
     assert result["created_evaluation_records"] == 2
     assert Path(result["backup_path"]).exists()
-    with sqlite3.connect(db_path) as connection:
+    with connect(db_path, KEY) as connection:
         cycles = connection.execute("select id, cycle_name, status from evaluation_cycle order by id").fetchall()
         snapshots = connection.execute("select cycle_id, emp_id, emp_name from cycle_employee_snapshot where cycle_id = 1 order by emp_id").fetchall()
         objectives = connection.execute("select cycle_id, emp_id from objective_data").fetchall()
@@ -91,19 +93,19 @@ def test_reset_current_cycle_reviews_backs_up_deletes_and_recreates_active_cycle
 
 def test_reset_current_cycle_reviews_does_nothing_without_active_cycle(tmp_path):
     db_path = tmp_path / "performance_review.sqlite3"
-    with sqlite3.connect(db_path) as connection:
+    with connect(db_path, KEY) as connection:
         create_schema(connection)
         connection.execute("insert into evaluation_cycle (id, cycle_name, status) values (1, '2026-Q1', 'CLOSED')")
         connection.execute("insert into evaluation_record (id, cycle_id, emp_id, status) values (21, 1, 'H001', 'FINAL_CONFIRMED')")
         connection.commit()
 
-    result = reset_current_cycle_reviews(db_path)
+    result = reset_current_cycle_reviews(db_path, KEY)
 
     assert result["cycle_id"] is None
     assert result["deleted_evaluation_records"] == 0
     assert result["deleted_adjustment_logs"] == 0
     assert result["created_evaluation_records"] == 0
     assert result["backup_path"] is None
-    with sqlite3.connect(db_path) as connection:
+    with connect(db_path, KEY) as connection:
         records = connection.execute("select id, cycle_id, emp_id, status from evaluation_record").fetchall()
     assert records == [(21, 1, "H001", "FINAL_CONFIRMED")]

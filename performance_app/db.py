@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import sqlite3
+import sqlcipher3 as sqlite3  # DB-API 2.0 与 sqlite3 一致,提供透明整库加密
 from pathlib import Path
 
 from flask import Flask, current_app, g
@@ -85,11 +85,23 @@ DEMO_EMPLOYEES = (
 )
 
 
+def connect(database_path: str, encryption_key: str) -> sqlite3.Connection:
+    """打开加密数据库连接。密钥错误时立即抛出 DatabaseError(file is not a database)。"""
+    connection = sqlite3.connect(database_path)
+    connection.execute(f"PRAGMA key = \"x'{encryption_key}'\"")
+    connection.execute("pragma foreign_keys = on")
+    # 主动触发一次解密,把"密钥错误"前置到连接阶段,而非首次业务查询
+    connection.execute("select count(*) from sqlite_master").fetchone()
+    return connection
+
+
 def get_db() -> sqlite3.Connection:
     if "db" not in g:
-        connection = sqlite3.connect(current_app.config["DATABASE"])
+        connection = connect(
+            current_app.config["DATABASE"],
+            current_app.config["DB_ENCRYPTION_KEY"],
+        )
         connection.row_factory = sqlite3.Row
-        connection.execute("pragma foreign_keys = on")
         g.db = connection
     return g.db
 
@@ -104,17 +116,17 @@ def schema_path() -> Path:
     return Path(__file__).with_name("schema.sql")
 
 
-def _connect_database(database_path: str) -> sqlite3.Connection:
-    return sqlite3.connect(database_path)
+def _connect_database(database_path: str, encryption_key: str) -> sqlite3.Connection:
+    return connect(database_path, encryption_key)
 
 
 def init_database(app: Flask) -> None:
     database_path = app.config["DATABASE"]
+    encryption_key = app.config["DB_ENCRYPTION_KEY"]
     if database_path != ":memory:":
         Path(database_path).parent.mkdir(parents=True, exist_ok=True)
 
-    with _connect_database(database_path) as connection:
-        connection.execute("pragma foreign_keys = on")
+    with _connect_database(database_path, encryption_key) as connection:
         connection.executescript(schema_path().read_text(encoding="utf-8"))
         row = connection.execute(
             "select version from schema_version order by id desc limit 1"
