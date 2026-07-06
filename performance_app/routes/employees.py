@@ -119,7 +119,7 @@ def add_single_employee(cycle_id: int):
     return jsonify(result)
 
 
-ACCOUNT_EXPORT_HEADERS = ["工号", "姓名", "部门", "序列", "职级", "登录账号", "账号状态", "角色", "直接上级", "间接上级", "部门负责人", "初始密码"]
+ACCOUNT_EXPORT_HEADERS = ["工号", "姓名", "部门", "序列", "职级", "登录账号", "账号状态", "角色", "直接上级", "间接上级", "部门负责人"]
 
 
 @bp.get("/cycles/<int:cycle_id>/accounts/export")
@@ -150,7 +150,6 @@ def export_cycle_accounts(cycle_id: int):
             acc["direct_manager_id"] or "-",
             acc["indirect_manager_id"] or "-",
             acc["dept_head_id"] or "-",
-            "见导入批次密码CSV" if acc["username"] else "-",  # 真实初始密码仅在导入时生成,见 account_passwords_<batch>.csv
         ])
 
     output = BytesIO()
