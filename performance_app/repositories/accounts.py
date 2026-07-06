@@ -77,8 +77,16 @@ def generate_random_password() -> str:
     return "".join(secrets.choice(PASSWORD_ALPHABET) for _ in range(PASSWORD_LENGTH))
 
 
+# 导入流程管理的组织角色;HRBP/ADMIN 是行政角色(由 HR 手动赋予),导入不清除
+IMPORTED_ROLES = ("EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD")
+
+
 def ensure_account(emp_id: str, username: str, password: str, roles: list[str]) -> tuple[dict, bool]:
-    """确保账号存在。返回 (user, created):created 为 True 表示本次新建,调用方据此收集初始密码。"""
+    """确保账号存在。返回 (user, created):created 为 True 表示本次新建,调用方据此收集初始密码。
+
+    已存在账号的组织角色(EMPLOYEE/管理角色)按本次 roles 覆盖,
+    避免降职/调岗后旧角色残留;HRBP/ADMIN 属行政角色,保留不动。
+    """
     row = get_db().execute(
         "select id from user_account where emp_id = ?",
         (emp_id,),
@@ -86,6 +94,11 @@ def ensure_account(emp_id: str, username: str, password: str, roles: list[str]) 
     if row is None:
         return create_account(emp_id, username, password, roles), True
 
+    placeholders = ",".join("?" for _ in IMPORTED_ROLES)
+    get_db().execute(
+        f"delete from user_role where user_id = ? and role_code in ({placeholders})",
+        (row["id"], *IMPORTED_ROLES),
+    )
     for role in sorted(set(roles)):
         get_db().execute(
             "insert or ignore into user_role (user_id, role_code) values (?, ?)",
