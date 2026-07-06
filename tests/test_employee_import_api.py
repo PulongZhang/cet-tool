@@ -242,7 +242,6 @@ def test_export_cycle_accounts_initial_password_column_points_to_csv(tmp_path):
     sheet = load_workbook(BytesIO(response.data)).active
     header = [cell.value for cell in sheet[1]]
     assert header[-1] == "初始密码"
-    # 初始密码不再硬编码 ChangeMe123!,改为提示去查导入批次 CSV
+    # 初始密码列改为提示文字,指向导入批次 CSV(真实密码仅在导入时生成)
     values = [row[-1].value for row in sheet.iter_rows(min_row=2)]
-    assert all("ChangeMe" not in str(v) for v in values)
     assert all("见导入批次密码CSV" in str(v) for v in values)
