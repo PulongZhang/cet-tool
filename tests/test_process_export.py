@@ -123,3 +123,41 @@ def test_export_process_data_marks_missing_objective_with_dash(tmp_path):
     assert e002[4] == "-"    # 勤奋总量(无客观数据)
     assert e002[6] == "-"    # 勤奋等级
     assert e002[12] == "-"   # 部门负责人评价(未确认)
+
+
+def test_export_process_button_downloads_xlsx_directly(tmp_path):
+    """点'导出过程计算数据'按钮,POST 直接返回 xlsx 附件,不再需要二次下载链接。"""
+    app = make_app(tmp_path)
+    key = app.config["DB_ENCRYPTION_KEY"]
+    client = app.test_client()
+    client.post("/login", data={"username": "hr", "password": "admin123"})
+
+    cycle_id = _create_cycle(app)
+    with connect(app.config["DATABASE"], key) as conn:
+        conn.execute(
+            _SNAPSHOT_SQL,
+            (cycle_id, "E001", "张三", "员工序列", "P4", "EMPLOYEE_P4_10", "研发部",
+             "研发部", None, None, "研发部", "工程师", "", "", ""),
+        )
+        conn.execute(
+            "insert into evaluation_record (cycle_id, emp_id, status, current_subjective_level) "
+            "values (?, 'E001', 'DEPT_CONFIRMED', 'A')",
+            (cycle_id,),
+        )
+        conn.execute(
+            """
+            insert into objective_data
+                (cycle_id, emp_id, diligence_raw_total, diligence_month_avg, diligence_level,
+                 discipline_raw_count, discipline_level, learning_hours, learning_rank_pct, learning_level)
+            values (?, 'E001', 180, 60, 'A', 3, 'A+', 12, 100, 'D')
+            """,
+            (cycle_id,),
+        )
+        conn.commit()
+
+    response = client.post("/page/export-process", data={"cycle_id": str(cycle_id)})
+
+    assert response.status_code == 200
+    assert "spreadsheet" in response.content_type
+    assert "attachment" in response.headers.get("Content-Disposition", "")
+    assert response.data[:2] == b"PK"  # xlsx 是 zip 文件,以 PK 开头

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Blueprint, redirect, request
+from flask import Blueprint, redirect, request, send_file
 
 from performance_app.db import get_db
 from performance_app.repositories.audit import write_audit_log
@@ -22,7 +22,7 @@ from performance_app.services.calculation_runner import (
     calculate_cycle,
     finalize_cycle_results,
 )
-from performance_app.services.export_files import create_cycle_export, create_process_export
+from performance_app.services.export_files import create_cycle_export, create_process_export, export_file_path
 from performance_app.services.objective_import import import_objective_rows
 from performance_app.services.excel_import import parse_objective_workbook
 
@@ -363,22 +363,26 @@ def page_finalize():
 @bp.post("/page/export-final")
 @role_required("HRBP", "ADMIN")
 def page_export_final():
-    from flask import session
     cycle_id = int(request.form["cycle_id"])
     user = current_page_user()
     export = create_cycle_export(cycle_id, "final", user["emp_id"], user["username"])
-    session["export_download_url"] = export["download_url"]
-    session["export_file_name"] = export["file_name"]
-    return redirect_with_cycle("/results", cycle_id)
+    return send_file(
+        export_file_path(export["export_id"]),
+        as_attachment=True,
+        download_name=export["file_name"],
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 @bp.post("/page/export-process")
 @role_required("HRBP", "ADMIN")
 def page_export_process():
-    from flask import session
     cycle_id = int(request.form["cycle_id"])
     user = current_page_user()
     export = create_process_export(cycle_id, user["emp_id"], user["username"])
-    session["export_download_url"] = export["download_url"]
-    session["export_file_name"] = export["file_name"]
-    return redirect_with_cycle("/results", cycle_id)
+    return send_file(
+        export_file_path(export["export_id"]),
+        as_attachment=True,
+        download_name=export["file_name"],
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )

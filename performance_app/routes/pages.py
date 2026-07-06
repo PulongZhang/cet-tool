@@ -615,13 +615,9 @@ def objective_import_page():
 def results_page():
     cycle_id = selected_cycle_id()
     records = list_cycle_results(cycle_id) if cycle_id else []
-    # 获取导出下载链接
-    export_download_url = session.pop("export_download_url", None)
-    export_file_name = session.pop("export_file_name", None)
     # 计算最终等级分布（基于 final_level）
     dist_data = final_level_distribution(records)
     return render_template("results.html", cycles=available_cycles(), cycle_id=cycle_id, records=records,
-                          export_download_url=export_download_url, export_file_name=export_file_name,
                           dist_data=dist_data)
 
 
