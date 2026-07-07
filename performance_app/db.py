@@ -7,7 +7,6 @@ from flask import Flask, current_app, g
 from werkzeug.security import generate_password_hash
 
 SCHEMA_VERSION = 2
-DEFAULT_ACCOUNT_PASSWORD = "admin123"
 DEFAULT_BUILT_IN_ACCOUNTS = {
     "hr": ("HRBP",),
 }
@@ -68,11 +67,11 @@ def init_database(app: Flask) -> None:
             raise RuntimeError(
                 f"Database schema version {row[0]} is newer than application version {SCHEMA_VERSION}"
             )
-        ensure_built_in_accounts(connection)
+        ensure_built_in_accounts(connection, app.config["DEFAULT_ACCOUNT_PASSWORD"])
         connection.commit()
 
 
-def ensure_built_in_accounts(connection: sqlite3.Connection) -> None:
+def ensure_built_in_accounts(connection: sqlite3.Connection, default_password: str) -> None:
     for username, roles in DEFAULT_BUILT_IN_ACCOUNTS.items():
         row = connection.execute(
             "select id from user_account where username = ?",
@@ -84,7 +83,7 @@ def ensure_built_in_accounts(connection: sqlite3.Connection) -> None:
                 insert into user_account (emp_id, username, password_hash, status)
                 values (?, ?, ?, 'ACTIVE')
                 """,
-                (username, username, generate_password_hash(DEFAULT_ACCOUNT_PASSWORD)),
+                (username, username, generate_password_hash(default_password)),
             )
             user_id = cursor.lastrowid
         else:

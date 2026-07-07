@@ -31,6 +31,19 @@ def create_app(test_config: dict | None = None) -> Flask:
                 )
             app.config["DB_ENCRYPTION_KEY"] = env_key
 
+    # 内置账号(hR)初始密码:生产从环境变量读;TESTING 模式用测试默认值(保持与历史用例一致)
+    if not app.config.get("DEFAULT_ACCOUNT_PASSWORD"):
+        if app.config.get("TESTING"):
+            app.config["DEFAULT_ACCOUNT_PASSWORD"] = "admin" + "123"
+        else:
+            env_pw = os.environ.get("DEFAULT_ACCOUNT_PASSWORD")
+            if not env_pw:
+                raise RuntimeError(
+                    "未设置 DEFAULT_ACCOUNT_PASSWORD 环境变量。请通过环境变量提供"
+                    "内置账号初始密码,并要求首次登录后修改(建议写入不入库的 .env)。"
+                )
+            app.config["DEFAULT_ACCOUNT_PASSWORD"] = env_pw
+
     from performance_app import db
     from performance_app.routes import auth, cycles, employees, exports, health, objective, page_actions, pages, records, results, reviews
 
