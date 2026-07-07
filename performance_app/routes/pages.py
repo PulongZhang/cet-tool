@@ -420,8 +420,8 @@ def indirect_review_page():
         from performance_app.repositories.records import list_scope_records, filter_records
         records = list_scope_records(cycle_id, "indirect_manager_id", user["emp_id"])
         # 应用筛选前先获取所有唯一部门列表（用于筛选下拉框）
-        all_depts = sorted(set(r.get("dept_level_4") or r.get("dept_name", "") for r in records if r.get("dept_level_4") or r.get("dept_name")))
-        all_levels = sorted(set(r.get("level") for r in records if r.get("level")))
+        all_depts = sorted({r.get("dept_level_4") or r.get("dept_name", "") for r in records if r.get("dept_level_4") or r.get("dept_name")})
+        all_levels = sorted({r.get("level") for r in records if r.get("level")})
         # 应用筛选
         records = filter_records(records, filter_status, filter_level, filter_dept, filter_level_range)
     else:
@@ -488,8 +488,8 @@ def dept_review_page():
         from performance_app.repositories.records import list_scope_records, filter_records
         records = list_scope_records(cycle_id, "dept_head_id", user["emp_id"])
         # 应用筛选前先获取所有唯一部门列表（用于筛选下拉框）
-        all_depts = sorted(set(r.get("dept_level_4") or r.get("dept_name", "") for r in records if r.get("dept_level_4") or r.get("dept_name")))
-        all_levels = sorted(set(r.get("level") for r in records if r.get("level")))
+        all_depts = sorted({r.get("dept_level_4") or r.get("dept_name", "") for r in records if r.get("dept_level_4") or r.get("dept_name")})
+        all_levels = sorted({r.get("level") for r in records if r.get("level")})
         # 应用筛选
         records = filter_records(records, filter_status, filter_level, filter_dept, filter_level_range)
     else:
