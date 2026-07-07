@@ -57,6 +57,21 @@ def import_objective_rows(cycle_id: int, file_name: str, rows: list[dict], opera
     }
 
 
+def _parse_numeric_fields(row: dict, fields: tuple[str, ...], parser, default, row_number: int, emp_id: str) -> tuple[dict | None, dict | None]:
+    """逐字段解析数值;缺失用默认值,解析失败返回错误。"""
+    values: dict = {}
+    for field in fields:
+        raw = row.get(field)
+        if raw in (None, ""):
+            values[field] = default
+            continue
+        parsed, error = parser(raw, field, row_number, emp_id)
+        if error:
+            return None, error
+        values[field] = parsed
+    return values, None
+
+
 def validate_row(cycle_id: int, row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[dict | None, dict | None]:
     # 只检查工号必填
     emp_id_raw = row.get("emp_id")
@@ -72,27 +87,13 @@ def validate_row(cycle_id: int, row: dict, row_number: int, seen_emp_ids: set[st
         return None, row_error(row_number, emp_id, "emp_id", "emp_id does not exist in cycle")
 
     # 处理数值字段，缺失时使用默认值0
-    numeric_values: dict[str, float] = {}
-    for field in (*MONTH_FIELDS, "learning_hours"):
-        value = row.get(field)
-        if value in (None, ""):
-            numeric_values[field] = 0.0
-        else:
-            value, error = parse_float(value, field, row_number, emp_id)
-            if error:
-                return None, error
-            numeric_values[field] = value
+    numeric_values, error = _parse_numeric_fields(row, (*MONTH_FIELDS, "learning_hours"), parse_float, 0.0, row_number, emp_id)
+    if error:
+        return None, error
 
-    count_values: dict[str, int] = {}
-    for field in COUNT_FIELDS:
-        value = row.get(field)
-        if value in (None, ""):
-            count_values[field] = 0
-        else:
-            value, error = parse_non_negative_int(value, field, row_number, emp_id)
-            if error:
-                return None, error
-            count_values[field] = value
+    count_values, error = _parse_numeric_fields(row, COUNT_FIELDS, parse_non_negative_int, 0, row_number, emp_id)
+    if error:
+        return None, error
 
     seen_emp_ids.add(emp_id)
     diligence_raw_total = sum(numeric_values[field] for field in MONTH_FIELDS)

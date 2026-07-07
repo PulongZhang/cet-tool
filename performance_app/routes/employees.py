@@ -10,6 +10,8 @@ from performance_app.services.excel_import import EMPLOYEE_HEADERS, build_templa
 
 bp = Blueprint("employees", __name__)
 
+XLSX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
 
 @bp.get("/cycles/<int:cycle_id>/employees")
 def cycle_employees(cycle_id: int):
@@ -22,7 +24,7 @@ def employee_template(cycle_id: int):
         build_template(EMPLOYEE_HEADERS),
         as_attachment=True,
         download_name=f"cycle-{cycle_id}-employees-template.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        mimetype=XLSX_MIME_TYPE,
     )
 
 
@@ -160,7 +162,7 @@ def export_cycle_accounts(cycle_id: int):
         output,
         as_attachment=True,
         download_name=f"cycle-{cycle_id}-accounts.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        mimetype=XLSX_MIME_TYPE,
     )
 
 
@@ -179,5 +181,5 @@ def download_account_passwords(batch_id: int):
         file_path,
         as_attachment=True,
         download_name=file_path.name,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        mimetype=XLSX_MIME_TYPE,
     )

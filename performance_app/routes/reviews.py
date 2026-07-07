@@ -14,7 +14,7 @@ from performance_app.repositories.records import (
     update_record_field,
     update_status,
 )
-from performance_app.routes.records import current_user_or_response
+from performance_app.routes.records import CYCLE_ID_REQUIRED, current_user_or_response
 
 bp = Blueprint("reviews", __name__)
 
@@ -38,7 +38,7 @@ def indirect_reviews():
         return error
     cycle_id = cycle_id_from_request()
     if not cycle_id:
-        return jsonify({"error": "cycle_id is required"}), 400
+        return jsonify({"error": CYCLE_ID_REQUIRED}), 400
     records = list_review_records(cycle_id, "indirect_manager_id", user["emp_id"], "INDIRECT_PENDING")
     return jsonify({"records": records})
 
@@ -50,7 +50,7 @@ def indirect_distribution():
         return error
     cycle_id = cycle_id_from_request()
     if not cycle_id:
-        return jsonify({"error": "cycle_id is required"}), 400
+        return jsonify({"error": CYCLE_ID_REQUIRED}), 400
     records = list_review_records(cycle_id, "indirect_manager_id", user["emp_id"], "INDIRECT_PENDING")
     return jsonify({"distribution": distribution_for_records(records)})
 
@@ -62,7 +62,7 @@ def indirect_submit():
         return error
     cycle_id = cycle_id_from_request()
     if not cycle_id:
-        return jsonify({"error": "cycle_id is required"}), 400
+        return jsonify({"error": CYCLE_ID_REQUIRED}), 400
     scope_records = list_scope_records(cycle_id, "indirect_manager_id", user["emp_id"])
     blocking = blocking_records(scope_records, "INDIRECT_PENDING", {"DIRECT_PENDING", "DIRECT_DRAFT", "INDIRECT_PENDING"})
     if blocking:
@@ -79,7 +79,7 @@ def dept_head_reviews():
         return error
     cycle_id = cycle_id_from_request()
     if not cycle_id:
-        return jsonify({"error": "cycle_id is required"}), 400
+        return jsonify({"error": CYCLE_ID_REQUIRED}), 400
     records = list_review_records(cycle_id, "dept_head_id", user["emp_id"], "DEPT_HEAD_PENDING")
     return jsonify({"records": records})
 
@@ -91,7 +91,7 @@ def dept_head_distribution():
         return error
     cycle_id = cycle_id_from_request()
     if not cycle_id:
-        return jsonify({"error": "cycle_id is required"}), 400
+        return jsonify({"error": CYCLE_ID_REQUIRED}), 400
     records = list_review_records(cycle_id, "dept_head_id", user["emp_id"], "DEPT_HEAD_PENDING")
     return jsonify({"distribution": distribution_for_records(records)})
 
@@ -103,7 +103,7 @@ def dept_head_submit():
         return error
     cycle_id = cycle_id_from_request()
     if not cycle_id:
-        return jsonify({"error": "cycle_id is required"}), 400
+        return jsonify({"error": CYCLE_ID_REQUIRED}), 400
     scope_records = list_scope_records(cycle_id, "dept_head_id", user["emp_id"])
     blocking = blocking_records(scope_records, "DEPT_HEAD_PENDING", {"INDIRECT_PENDING", "DEPT_HEAD_PENDING"})
     if blocking:

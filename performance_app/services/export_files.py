@@ -111,6 +111,16 @@ PROCESS_QUERY = """
 """
 
 
+def _none_or_dash(value):
+    """数值字段:仅 None 显示为 '-',保留 0 等假值。"""
+    return value if value is not None else "-"
+
+
+def _text_or_dash(value):
+    """文本字段:空值(falsy)显示为 '-'。"""
+    return value or "-"
+
+
 def create_process_export(cycle_id: int, operator_id: str, operator_name: str) -> dict:
     """导出过程计算数据:按序列/职级分sheet页，包含客观数据、主观评价和部门负责人确认等级。"""
     rows = get_db().execute(PROCESS_QUERY, (cycle_id,)).fetchall()
@@ -160,7 +170,6 @@ def create_process_export(cycle_id: int, operator_id: str, operator_name: str) -
     # 如果所有分组都为空，至少创建一个默认sheet
     if not (mgmt_rows or p1_p3_rows or p4_p10_rows):
         _create_sheet(workbook, "全部数据", EMP_HEADERS, rows)
-
     workbook.save(file_path)
 
     write_audit_log(
@@ -186,19 +195,19 @@ def _create_sheet(workbook: Workbook, title: str, headers: tuple, rows: list) ->
             row["emp_name"],
             row["dept_level_3"] or row["dept_level_4"] or row["dept_name"] or "-",
             row["dept_level_4"] or row["dept_name"] or "-",
-            row["level"] or "-",
-            row["diligence_raw_total"] if row["diligence_raw_total"] is not None else "-",
-            row["diligence_month_avg"] if row["diligence_month_avg"] is not None else "-",
-            row["diligence_level"] or "-",
-            row["discipline_raw_count"] if row["discipline_raw_count"] is not None else "-",
-            row["discipline_level"] or "-",
-            row["learning_hours"] if row["learning_hours"] is not None else "-",
-            row["learning_rank_pct"] if row["learning_rank_pct"] is not None else "-",
-            row["learning_level"] or "-",
-            row["final_subjective_grade_1"] or "-",
-            row["final_subjective_grade_2"] or "-",
-            row["final_subjective_grade_3"] or "-",
-            row["current_subjective_level"] or "-",
+            _text_or_dash(row["level"]),
+            _none_or_dash(row["diligence_raw_total"]),
+            _none_or_dash(row["diligence_month_avg"]),
+            _text_or_dash(row["diligence_level"]),
+            _none_or_dash(row["discipline_raw_count"]),
+            _text_or_dash(row["discipline_level"]),
+            _none_or_dash(row["learning_hours"]),
+            _none_or_dash(row["learning_rank_pct"]),
+            _text_or_dash(row["learning_level"]),
+            _text_or_dash(row["final_subjective_grade_1"]),
+            _text_or_dash(row["final_subjective_grade_2"]),
+            _text_or_dash(row["final_subjective_grade_3"]),
+            _text_or_dash(row["current_subjective_level"]),
         ))
 
 

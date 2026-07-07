@@ -39,6 +39,32 @@ OPTIONAL_FIELDS = [
 # 系统允许的角色列表
 VALID_ROLES = {"EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD", "HRBP", "ADMIN"}
 
+# 经理字段 -> 中文标签(自检与导入解析共用)
+MANAGER_FIELD_LABELS = {
+    "direct_manager_id": "直接上级",
+    "indirect_manager_id": "间接上级",
+    "dept_head_id": "部门负责人",
+}
+
+# 角色字段支持的分隔符
+ROLE_SEPARATORS = [",", ";", " ", "/", "|", "\n"]
+
+
+def _split_roles(raw: str) -> list[str]:
+    """按多种分隔符拆分角色文本;无分隔符时视为单个角色。"""
+    for sep in ROLE_SEPARATORS:
+        if sep in raw:
+            return [part.strip() for part in raw.split(sep) if part.strip()]
+    return [raw] if raw else []
+
+
+def _manager_self_violation(normalized: dict, emp_id: str) -> tuple[str, str] | None:
+    """若某经理字段等于员工自己工号,返回 (field, label),否则 None。"""
+    for field, label in MANAGER_FIELD_LABELS.items():
+        if normalized.get(field) and normalized[field] == emp_id:
+            return field, label
+    return None
+
 
 def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[dict | None, dict | None]:
     for field in REQUIRED_FIELDS:
@@ -61,10 +87,7 @@ def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[di
 
     normalized = {field: str(row[field]).strip() for field in REQUIRED_FIELDS}
     # 经理字段可选，允许最高级管理者不填写上级
-    for field in MANAGER_FIELDS:
-        value = row.get(field)
-        normalized[field] = value.strip() if value else ""
-    for field in OPTIONAL_FIELDS:
+    for field in (*MANAGER_FIELDS, *OPTIONAL_FIELDS):
         value = row.get(field)
         normalized[field] = value.strip() if value else ""
 
@@ -84,17 +107,7 @@ def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[di
     # 验证角色值
     roles_value = normalized.get("roles", "")
     if roles_value:
-        # 支持多种分隔符：逗号、分号、空格、斜杠
-        for sep in [",", ";", " ", "/", "|", "\n"]:
-            if sep in roles_value:
-                role_list = [r.strip() for r in roles_value.split(sep) if r.strip()]
-                break
-        else:
-            # 没有分隔符，作为单个角色
-            role_list = [roles_value] if roles_value else []
-
-        # 验证每个角色是否在允许的列表中
-        invalid_roles = [r for r in role_list if r not in VALID_ROLES]
+        invalid_roles = [r for r in _split_roles(roles_value) if r not in VALID_ROLES]
         if invalid_roles:
             return None, {
                 "row_number": row_number,
@@ -104,24 +117,27 @@ def validate_row(row: dict, row_number: int, seen_emp_ids: set[str]) -> tuple[di
             }
 
     # 验证经理字段不能是自己的工号（如果填写了的话）
-    manager_fields = {
-        "direct_manager_id": "直接上级",
-        "indirect_manager_id": "间接上级",
-        "dept_head_id": "部门负责人",
-    }
-    for field, label in manager_fields.items():
-        manager_id = normalized.get(field)
-        if manager_id and manager_id == emp_id:
-            return None, {
-                "row_number": row_number,
-                "emp_id": emp_id,
-                "field_name": field,
-                "error_message": f"{label}不能是员工自己的工号",
-            }
+    violation = _manager_self_violation(normalized, emp_id)
+    if violation:
+        field, label = violation
+        return None, {
+            "row_number": row_number,
+            "emp_id": emp_id,
+            "field_name": field,
+            "error_message": f"{label}不能是员工自己的工号",
+        }
 
     seen_emp_ids.add(emp_id)
     normalized["group_code"] = group_code
     return normalized, None
+
+
+# 组织关系字段 -> 自动推断的管理角色
+MANAGER_ROLE_BY_FIELD = {
+    "direct_manager_id": "DIRECT_MANAGER",
+    "indirect_manager_id": "INDIRECT_MANAGER",
+    "dept_head_id": "DEPT_HEAD",
+}
 
 
 def role_map_for_rows(rows: list[dict]) -> dict[str, set[str]]:
@@ -132,20 +148,10 @@ def role_map_for_rows(rows: list[dict]) -> dict[str, set[str]]:
 
     for row in rows:
         emp_id = row["emp_id"]
-
-        # 如果Excel中指定了角色，使用指定的角色
-        if row.get("roles"):
-            specified_roles = str(row["roles"]).strip()
-            # 支持多种分隔符：逗号、分号、空格、斜杠
-            for sep in [",", ";", " ", "/", "|", "\n"]:
-                if sep in specified_roles:
-                    role_list = [r.strip() for r in specified_roles.split(sep) if r.strip()]
-                    roles[emp_id] = set(role_list)
-                    break
-            else:
-                # 没有分隔符，作为单个角色
-                if specified_roles:
-                    roles[emp_id] = {specified_roles}
+        spec = row.get("roles")
+        if spec:
+            # 如果Excel中指定了角色，使用指定的角色
+            roles[emp_id] = set(_split_roles(str(spec).strip()))
             specified_in_excel.add(emp_id)
         else:
             # 没有指定角色，默认为员工
@@ -153,20 +159,10 @@ def role_map_for_rows(rows: list[dict]) -> dict[str, set[str]]:
 
     # 第二遍：只有当Excel中未明确指定角色时，才根据组织关系推断管理角色
     for row in rows:
-        emp_id = row["emp_id"]
-        # 只有在Excel中未明确指定角色的员工，才会被自动添加管理角色
-        if row.get("direct_manager_id") and row["direct_manager_id"] in imported_ids:
-            manager_id = row["direct_manager_id"]
-            if manager_id not in specified_in_excel:
-                roles[manager_id].add("DIRECT_MANAGER")
-        if row.get("indirect_manager_id") and row["indirect_manager_id"] in imported_ids:
-            manager_id = row["indirect_manager_id"]
-            if manager_id not in specified_in_excel:
-                roles[manager_id].add("INDIRECT_MANAGER")
-        if row.get("dept_head_id") and row["dept_head_id"] in imported_ids:
-            manager_id = row["dept_head_id"]
-            if manager_id not in specified_in_excel:
-                roles[manager_id].add("DEPT_HEAD")
+        for field, role in MANAGER_ROLE_BY_FIELD.items():
+            manager_id = row.get(field)
+            if manager_id and manager_id in imported_ids and manager_id not in specified_in_excel:
+                roles[manager_id].add(role)
 
     return roles
 
@@ -196,12 +192,10 @@ def _write_password_xlsx(new_accounts: list[dict], batch_id: int) -> str:
     return file_name
 
 
-def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operator_id: str) -> dict:
-    batch_id = create_import_batch(cycle_id, "EMPLOYEE", file_name, len(rows), operator_id)
-
-    # 第一阶段：收集所有员工数据，建立姓名->工号映射
-    name_to_emp_id = {}  # 姓名映射到工号（处理重名：第一个出现的优先）
-    emp_id_set = set()   # 所有工号集合
+def _collect_name_id_maps(rows: list[dict]) -> tuple[dict[str, str], set[str]]:
+    """建立 姓名->工号 映射(重名取首个)与全部工号集合。"""
+    name_to_emp_id: dict[str, str] = {}
+    emp_id_set: set[str] = set()
     for row in rows:
         emp_id = (row.get("emp_id") or "").strip()
         emp_name = (row.get("emp_name") or "").strip()
@@ -209,6 +203,49 @@ def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operat
             emp_id_set.add(emp_id)
             if emp_name not in name_to_emp_id:
                 name_to_emp_id[emp_name] = emp_id
+    return name_to_emp_id, emp_id_set
+
+
+def _resolve_manager_value(value, emp_id_set: set[str], name_to_emp_id: dict[str, str]) -> str | None:
+    """工号直接用、姓名转工号;空值返回空串,无法识别返回 None。"""
+    value = (value or "").strip()
+    if not value:
+        return ""
+    if value in emp_id_set:
+        return value
+    if value in name_to_emp_id:
+        return name_to_emp_id[value]
+    return None
+
+
+def _process_row_managers(row: dict, emp_id_set: set[str], name_to_emp_id: dict[str, str], index: int, batch_id: int, errors: list[dict]) -> tuple[dict, bool]:
+    """转换一行的经理字段(姓名->工号)。返回 (处理后的行, 是否有错误)。"""
+    processed_row = dict(row)
+    has_error = False
+    for field, label in MANAGER_FIELD_LABELS.items():
+        raw = (row.get(field) or "").strip()
+        if not raw:
+            continue
+        resolved = _resolve_manager_value(raw, emp_id_set, name_to_emp_id)
+        if resolved is None:
+            has_error = True
+            errors.append({
+                "row_number": index,
+                "emp_id": row.get("emp_id"),
+                "field_name": field,
+                "error_message": f"{label}'{raw}'不是有效的工号或姓名（未在本次导入中找到）",
+            })
+            add_import_error(batch_id, errors[-1], row)
+        else:
+            processed_row[field] = resolved
+    return processed_row, has_error
+
+
+def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operator_id: str) -> dict:
+    batch_id = create_import_batch(cycle_id, "EMPLOYEE", file_name, len(rows), operator_id)
+
+    # 第一阶段：收集所有员工数据，建立姓名->工号映射
+    name_to_emp_id, emp_id_set = _collect_name_id_maps(rows)
 
     # 第二阶段：验证和转换
     seen_emp_ids: set[str] = set()
@@ -217,34 +254,7 @@ def import_employee_rows(cycle_id: int, file_name: str, rows: list[dict], operat
 
     for index, row in enumerate(rows, start=2):
         # 先转换经理字段：如果是姓名，转换为工号
-        processed_row = dict(row)
-        has_manager_error = False
-        manager_fields = {
-            "direct_manager_id": "直接上级",
-            "indirect_manager_id": "间接上级",
-            "dept_head_id": "部门负责人",
-        }
-        for field, label in manager_fields.items():
-            value = (processed_row.get(field) or "").strip()
-            if not value:
-                continue
-            # 如果是工号（在导入数据的工号列表中），直接使用
-            if value in emp_id_set:
-                processed_row[field] = value
-            # 如果是姓名（在姓名映射中），转换为工号
-            elif value in name_to_emp_id:
-                processed_row[field] = name_to_emp_id[value]
-            # 既不是工号也不是姓名，报错
-            else:
-                has_manager_error = True
-                errors.append({
-                    "row_number": index,
-                    "emp_id": processed_row.get("emp_id"),
-                    "field_name": field,
-                    "error_message": f"{label}'{value}'不是有效的工号或姓名（未在本次导入中找到）",
-                })
-                add_import_error(batch_id, errors[-1], row)
-
+        processed_row, has_manager_error = _process_row_managers(row, emp_id_set, name_to_emp_id, index, batch_id, errors)
         if has_manager_error:
             continue
 

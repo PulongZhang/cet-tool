@@ -18,6 +18,9 @@ bp = Blueprint("records", __name__)
 COMMENT_REQUIRED_GRADES = {"A+", "A", "C", "D"}
 SELF_EDITABLE_STATUSES = {"SELF_PENDING", "SELF_DRAFT"}
 
+CYCLE_ID_REQUIRED = "cycle_id is required"
+RECORD_NOT_FOUND = "record not found"
+
 
 def current_user_or_response():
     user_id = request.headers.get("X-User-Id")
@@ -46,10 +49,10 @@ def my_record():
         return error
     cycle_id = request.args.get("cycle_id", type=int)
     if not cycle_id:
-        return jsonify({"error": "cycle_id is required"}), 400
+        return jsonify({"error": CYCLE_ID_REQUIRED}), 400
     record = get_my_record(cycle_id, user["emp_id"])
     if record is None:
-        return jsonify({"error": "record not found"}), 404
+        return jsonify({"error": RECORD_NOT_FOUND}), 404
     return jsonify({"record": record})
 
 
@@ -60,7 +63,7 @@ def self_draft(record_id: int):
         return error
     record = get_record(record_id)
     if record is None:
-        return jsonify({"error": "record not found"}), 404
+        return jsonify({"error": RECORD_NOT_FOUND}), 404
     if record["emp_id"] != user["emp_id"]:
         return jsonify({"error": "forbidden"}), 403
     if record["status"] not in SELF_EDITABLE_STATUSES:
@@ -81,7 +84,7 @@ def self_submit(record_id: int):
         return error
     record = get_record(record_id)
     if record is None:
-        return jsonify({"error": "record not found"}), 404
+        return jsonify({"error": RECORD_NOT_FOUND}), 404
     if record["emp_id"] != user["emp_id"]:
         return jsonify({"error": "forbidden"}), 403
     if record["status"] not in SELF_EDITABLE_STATUSES:
@@ -102,7 +105,7 @@ def direct_reports():
         return error
     cycle_id = request.args.get("cycle_id", type=int)
     if not cycle_id:
-        return jsonify({"error": "cycle_id is required"}), 400
+        return jsonify({"error": CYCLE_ID_REQUIRED}), 400
     return jsonify({"records": list_direct_reports(cycle_id, user["emp_id"])})
 
 
@@ -127,7 +130,7 @@ def submit_direct_reports():
     payload = request.get_json(silent=True) or {}
     cycle_id = payload.get("cycle_id")
     if not cycle_id:
-        return jsonify({"error": "cycle_id is required"}), 400
+        return jsonify({"error": CYCLE_ID_REQUIRED}), 400
     reports = list_direct_reports(int(cycle_id), user["emp_id"])
     blocking = blocking_records(reports, "DIRECT_DRAFT")
     if blocking:
@@ -148,7 +151,7 @@ def save_manager(record_id: int, status: str):
         return error
     record = get_record(record_id)
     if record is None:
-        return jsonify({"error": "record not found"}), 404
+        return jsonify({"error": RECORD_NOT_FOUND}), 404
     if record["direct_manager_id"] != user["emp_id"]:
         return jsonify({"error": "forbidden"}), 403
     payload = request.get_json(silent=True) or {}

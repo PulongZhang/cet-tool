@@ -15,7 +15,7 @@ def get_local_ip():
                 local_ip = s.getsockname()[0]
                 if local_ip.startswith("10."):
                     return local_ip
-            except:
+            except OSError:
                 pass
 
         # 方法2：回退到连接外网获取IP

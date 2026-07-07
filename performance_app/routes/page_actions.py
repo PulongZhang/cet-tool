@@ -28,6 +28,9 @@ from performance_app.services.excel_import import parse_objective_workbook
 
 bp = Blueprint("page_actions", __name__)
 
+CYCLES_PAGE_PATH = "/cycles/page"
+RESULTS_PAGE_PATH = "/results"
+
 
 def redirect_with_cycle(path: str, cycle_id: str | int | None):
     return redirect(f"{path}?cycle_id={cycle_id}" if cycle_id else path)
@@ -82,7 +85,7 @@ def page_cycle_create():
         if cycle is not None:
             write_cycle_audit("CREATE_CYCLE", cycle, operator_id, operator_name)
             get_db().commit()
-    return redirect("/cycles/page")
+    return redirect(CYCLES_PAGE_PATH)
 
 
 @bp.post("/page/cycles/start")
@@ -95,7 +98,7 @@ def page_cycle_start():
             operator_id, operator_name = current_operator()
             write_cycle_audit("START_CYCLE", cycle, operator_id, operator_name)
             get_db().commit()
-    return redirect("/cycles/page")
+    return redirect(CYCLES_PAGE_PATH)
 
 
 @bp.post("/page/cycles/close")
@@ -108,7 +111,7 @@ def page_cycle_close():
             operator_id, operator_name = current_operator()
             write_cycle_audit("CLOSE_CYCLE", cycle, operator_id, operator_name)
             get_db().commit()
-    return redirect("/cycles/page")
+    return redirect(CYCLES_PAGE_PATH)
 
 
 @bp.post("/page/cycles/revert")
@@ -122,7 +125,7 @@ def page_cycle_revert():
             operator_id, operator_name = current_operator()
             write_cycle_audit("REVERT_CYCLE", cycle, operator_id, operator_name, before_snapshot=cycle)
             get_db().commit()
-    return redirect("/cycles/page")
+    return redirect(CYCLES_PAGE_PATH)
 
 
 @bp.post("/page/cycles/delete")
@@ -135,7 +138,7 @@ def page_cycle_delete():
             operator_id, operator_name = current_operator()
             write_cycle_audit("DELETE_CYCLE", cycle, operator_id, operator_name, before_snapshot=cycle)
             get_db().commit()
-    return redirect("/cycles/page")
+    return redirect(CYCLES_PAGE_PATH)
 
 
 @bp.post("/page/self-draft")
@@ -192,6 +195,66 @@ def page_direct_submit():
     return redirect_with_cycle("/direct-reports", cycle_id)
 
 
+def _can_adjust(record: dict, return_to: str, user: dict) -> bool:
+    """根据来源界面与记录状态,判断当前用户是否有权调整。"""
+    status = record["status"]
+    emp_id = user["emp_id"]
+    if "/reviews/indirect" in return_to:
+        # 用户来自间接上级界面，只允许操作 INDIRECT_PENDING 状态的记录
+        return status == "INDIRECT_PENDING" and record["indirect_manager_id"] == emp_id
+    if "/reviews/dept-head" in return_to:
+        # 用户来自部门负责人界面，只允许操作 DEPT_HEAD_PENDING 状态的记录
+        return status == "DEPT_HEAD_PENDING" and record["dept_head_id"] == emp_id
+    # 默认行为：保持原有逻辑
+    return (status == "INDIRECT_PENDING" and record["indirect_manager_id"] == emp_id) or (
+        status == "DEPT_HEAD_PENDING" and record["dept_head_id"] == emp_id
+    )
+
+
+def _apply_adjustment(record: dict, record_id: int, field_name: str, after_value: str, reason: str, user: dict) -> None:
+    """执行字段调整并写审计/调整日志;update_record_field 失败时静默跳过。"""
+    before_value = record.get(field_name)
+    try:
+        update_record_field(record_id, field_name, after_value)
+    except ValueError:
+        return
+    stage = "INDIRECT" if record["status"] == "INDIRECT_PENDING" else "DEPT_HEAD"
+    write_audit_log(
+        action="ADJUST_GRADE",
+        target_type="evaluation_record",
+        target_id=record_id,
+        operator_id=user["emp_id"],
+        operator_name=user["username"],
+        cycle_id=record["cycle_id"],
+        before_snapshot={field_name: before_value},
+        after_snapshot={field_name: after_value},
+        reason=reason,
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get("User-Agent"),
+    )
+    get_db().execute(
+        """
+        insert into grade_adjustment_log
+            (cycle_id, record_id, stage, adjustment_type, field_name, before_value, after_value, reason, operator_id, operator_name)
+        values
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            record["cycle_id"],
+            record_id,
+            stage,
+            "SUGGESTED_LEVEL" if field_name == "current_subjective_level" else "SUBJECTIVE_DIMENSION",
+            field_name,
+            before_value,
+            after_value,
+            reason,
+            user["emp_id"],
+            user["username"],
+        ),
+    )
+    get_db().commit()
+
+
 @bp.post("/page/record-adjustment")
 @role_required("INDIRECT_MANAGER", "DEPT_HEAD")
 def page_record_adjustment():
@@ -203,64 +266,8 @@ def page_record_adjustment():
     reason = request.form.get("reason")
     user = current_page_user()
     record = get_record(record_id)
-    allowed = False
-    if record is not None:
-        # 根据 return_to 判断用户来自哪个界面，进行相应的权限检查
-        if "/reviews/indirect" in return_to:
-            # 用户来自间接上级界面，只允许操作 INDIRECT_PENDING 状态的记录
-            allowed = record["status"] == "INDIRECT_PENDING" and record["indirect_manager_id"] == user["emp_id"]
-        elif "/reviews/dept-head" in return_to:
-            # 用户来自部门负责人界面，只允许操作 DEPT_HEAD_PENDING 状态的记录
-            allowed = record["status"] == "DEPT_HEAD_PENDING" and record["dept_head_id"] == user["emp_id"]
-        else:
-            # 默认行为：保持原有逻辑
-            allowed = (
-                record["status"] == "INDIRECT_PENDING" and record["indirect_manager_id"] == user["emp_id"]
-            ) or (
-                record["status"] == "DEPT_HEAD_PENDING" and record["dept_head_id"] == user["emp_id"]
-            )
-    if allowed and field_name and after_value and reason:
-        before_value = record.get(field_name)
-        try:
-            updated = update_record_field(record_id, field_name, after_value)
-        except ValueError:
-            updated = None
-        if updated is not None:
-            stage = "INDIRECT" if record["status"] == "INDIRECT_PENDING" else "DEPT_HEAD"
-            write_audit_log(
-                action="ADJUST_GRADE",
-                target_type="evaluation_record",
-                target_id=record_id,
-                operator_id=user["emp_id"],
-                operator_name=user["username"],
-                cycle_id=record["cycle_id"],
-                before_snapshot={field_name: before_value},
-                after_snapshot={field_name: after_value},
-                reason=reason,
-                ip_address=request.remote_addr,
-                user_agent=request.headers.get("User-Agent"),
-            )
-            get_db().execute(
-                """
-                insert into grade_adjustment_log
-                    (cycle_id, record_id, stage, adjustment_type, field_name, before_value, after_value, reason, operator_id, operator_name)
-                values
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    record["cycle_id"],
-                    record_id,
-                    stage,
-                    "SUGGESTED_LEVEL" if field_name == "current_subjective_level" else "SUBJECTIVE_DIMENSION",
-                    field_name,
-                    before_value,
-                    after_value,
-                    reason,
-                    user["emp_id"],
-                    user["username"],
-                ),
-            )
-            get_db().commit()
+    if record is not None and field_name and after_value and reason and _can_adjust(record, return_to, user):
+        _apply_adjustment(record, record_id, field_name, after_value, reason, user)
     return redirect_with_cycle(return_to, cycle_id)
 
 
@@ -344,7 +351,7 @@ def page_calculate():
         else:
             missing_sample = ", ".join(f"{m['emp_id']}" for m in e.missing[:5])
             flash(f"计算失败：有 {missing_count} 条记录缺少必要数据（示例工号：{missing_sample}...）。请确保所有记录都有主观评分和客观数据。", "error")
-    return redirect_with_cycle("/results", cycle_id)
+    return redirect_with_cycle(RESULTS_PAGE_PATH, cycle_id)
 
 
 @bp.post("/page/final-level")
@@ -354,7 +361,7 @@ def page_final_level():
     cycle_id = request.form.get("cycle_id")
     user = current_page_user()
     adjust_final_level(record_id, request.form["final_level"], request.form["reason"], user["emp_id"], user["username"])
-    return redirect_with_cycle("/results", cycle_id)
+    return redirect_with_cycle(RESULTS_PAGE_PATH, cycle_id)
 
 
 @bp.post("/page/finalize")
@@ -363,7 +370,7 @@ def page_finalize():
     cycle_id = int(request.form["cycle_id"])
     user = current_page_user()
     finalize_cycle_results(cycle_id, user["emp_id"], user["username"])
-    return redirect_with_cycle("/results", cycle_id)
+    return redirect_with_cycle(RESULTS_PAGE_PATH, cycle_id)
 
 
 @bp.post("/page/export-final")

@@ -33,12 +33,18 @@ ROLE_LABELS = {
     "ADMIN": "管理员",
 }
 
+# 流程阶段标题与登录模板:多处复用,提取为常量保证文案一致
+TITLE_DIRECT_REVIEW = "直接上级评分"
+TITLE_INDIRECT_REVIEW = "间接上级审阅"
+TITLE_DEPT_HEAD_CONFIRM = "部门负责人确认"
+LOGIN_TEMPLATE = "login.html"
+
 SUBJECTIVE_LEVELS = ["A+", "A", "B+", "B", "B-", "C", "D"]
 
 # 调整日志中 stage 字段的中文映射
 ADJUSTMENT_STAGE_LABELS = {
-    "INDIRECT": "间接上级审阅",
-    "DEPT_HEAD": "部门负责人确认",
+    "INDIRECT": TITLE_INDIRECT_REVIEW,
+    "DEPT_HEAD": TITLE_DEPT_HEAD_CONFIRM,
     "HR": "HR 最终调整",
 }
 
@@ -75,9 +81,9 @@ STATUS_LABELS = {
 
 WORKFLOW_STAGES = (
     {"title": "员工自评", "statuses": {"SELF_PENDING", "SELF_DRAFT"}},
-    {"title": "直接上级评分", "statuses": {"DIRECT_PENDING", "DIRECT_DRAFT"}},
-    {"title": "间接上级审阅", "statuses": {"INDIRECT_PENDING"}},
-    {"title": "部门负责人确认", "statuses": {"DEPT_HEAD_PENDING"}},
+    {"title": TITLE_DIRECT_REVIEW, "statuses": {"DIRECT_PENDING", "DIRECT_DRAFT"}},
+    {"title": TITLE_INDIRECT_REVIEW, "statuses": {"INDIRECT_PENDING"}},
+    {"title": TITLE_DEPT_HEAD_CONFIRM, "statuses": {"DEPT_HEAD_PENDING"}},
     {"title": "HR 计算导出", "statuses": {"HR_PENDING", "INITIAL_CALCULATED", "FINAL_CONFIRMED"}},
 )
 
@@ -85,9 +91,9 @@ NAV_ITEMS = [
     {"title": "首页仪表盘", "href": "/", "roles": None},
     {"title": "周期管理", "href": "/cycles/page", "roles": {"HRBP", "ADMIN"}},
     {"title": "我的自评", "href": "/self-review", "roles": {"EMPLOYEE", "DIRECT_MANAGER", "INDIRECT_MANAGER", "DEPT_HEAD"}},
-    {"title": "直接上级评分", "href": "/direct-reports", "roles": {"DIRECT_MANAGER"}},
-    {"title": "间接上级审阅", "href": "/reviews/indirect/page", "roles": {"INDIRECT_MANAGER"}},
-    {"title": "部门负责人确认", "href": "/reviews/dept-head/page", "roles": {"DEPT_HEAD"}},
+    {"title": TITLE_DIRECT_REVIEW, "href": "/direct-reports", "roles": {"DIRECT_MANAGER"}},
+    {"title": TITLE_INDIRECT_REVIEW, "href": "/reviews/indirect/page", "roles": {"INDIRECT_MANAGER"}},
+    {"title": TITLE_DEPT_HEAD_CONFIRM, "href": "/reviews/dept-head/page", "roles": {"DEPT_HEAD"}},
     {"title": "客观数据导入", "href": "/objective/import/page", "roles": {"HRBP", "ADMIN"}},
     {"title": "计算结果与导出", "href": "/results", "roles": {"HRBP", "ADMIN"}},
 ]
@@ -273,6 +279,22 @@ def inject_page_context():
     }
 
 
+def _role_record_counts(manager_field: str, cycle_id: int, emp_id: str, pending_clause: str) -> tuple[int, int]:
+    """统计某管理角色(manager_field 列)的全部下属数与待处理数。
+
+    pending_clause 为附加在基础 where 之后的 status 过滤 SQL 片段(状态值硬编码,无外部输入)。
+    """
+    db = get_db()
+    common = (
+        " from evaluation_record r"
+        " join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id"
+        " where r.cycle_id = ? and s." + manager_field + " = ? and r.emp_id != ?"
+    )
+    total = db.execute("select count(*)" + common, (cycle_id, emp_id, emp_id)).fetchone()
+    pending = db.execute("select count(*)" + common + pending_clause, (cycle_id, emp_id, emp_id)).fetchone()
+    return (total[0] if total else 0), (pending[0] if pending else 0)
+
+
 @bp.get("/")
 @login_required
 def dashboard():
@@ -289,70 +311,22 @@ def dashboard():
     # 计算各角色的待办人数和全部人数
     pending_counts = {}
     if cycle_id and user:
-        from performance_app.db import get_db
-        if "DIRECT_MANAGER" in user.get("roles", []):
+        roles = user.get("roles", [])
+        if "DIRECT_MANAGER" in roles:
             # 直接上级：全部下属数和待评分的下属数
-            total = get_db().execute(
-                """
-                select count(*) from evaluation_record r
-                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
-                where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
-                """,
-                (cycle_id, user["emp_id"], user["emp_id"]),
-            ).fetchone()
-            pending = get_db().execute(
-                """
-                select count(*) from evaluation_record r
-                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
-                where r.cycle_id = ? and s.direct_manager_id = ? and r.emp_id != ?
-                  and r.status in ('DIRECT_PENDING', 'DIRECT_DRAFT')
-                """,
-                (cycle_id, user["emp_id"], user["emp_id"]),
-            ).fetchone()
-            pending_counts["direct_total"] = total[0] if total else 0
-            pending_counts["direct"] = pending[0] if pending else 0
-        if "INDIRECT_MANAGER" in user.get("roles", []):
+            total, pending = _role_record_counts("direct_manager_id", cycle_id, user["emp_id"], " and r.status in ('DIRECT_PENDING', 'DIRECT_DRAFT')")
+            pending_counts["direct_total"] = total
+            pending_counts["direct"] = pending
+        if "INDIRECT_MANAGER" in roles:
             # 间接上级：全部记录数和待审阅的记录数
-            total = get_db().execute(
-                """
-                select count(*) from evaluation_record r
-                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
-                where r.cycle_id = ? and s.indirect_manager_id = ? and r.emp_id != ?
-                """,
-                (cycle_id, user["emp_id"], user["emp_id"]),
-            ).fetchone()
-            pending = get_db().execute(
-                """
-                select count(*) from evaluation_record r
-                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
-                where r.cycle_id = ? and s.indirect_manager_id = ? and r.emp_id != ?
-                  and r.status = 'INDIRECT_PENDING'
-                """,
-                (cycle_id, user["emp_id"], user["emp_id"]),
-            ).fetchone()
-            pending_counts["indirect_total"] = total[0] if total else 0
-            pending_counts["indirect"] = pending[0] if pending else 0
-        if "DEPT_HEAD" in user.get("roles", []):
+            total, pending = _role_record_counts("indirect_manager_id", cycle_id, user["emp_id"], " and r.status = 'INDIRECT_PENDING'")
+            pending_counts["indirect_total"] = total
+            pending_counts["indirect"] = pending
+        if "DEPT_HEAD" in roles:
             # 部门负责人：全部记录数和待确认的记录数
-            total = get_db().execute(
-                """
-                select count(*) from evaluation_record r
-                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
-                where r.cycle_id = ? and s.dept_head_id = ? and r.emp_id != ?
-                """,
-                (cycle_id, user["emp_id"], user["emp_id"]),
-            ).fetchone()
-            pending = get_db().execute(
-                """
-                select count(*) from evaluation_record r
-                join cycle_employee_snapshot s on s.cycle_id = r.cycle_id and s.emp_id = r.emp_id
-                where r.cycle_id = ? and s.dept_head_id = ? and r.emp_id != ?
-                  and r.status = 'DEPT_HEAD_PENDING'
-                """,
-                (cycle_id, user["emp_id"], user["emp_id"]),
-            ).fetchone()
-            pending_counts["dept_head_total"] = total[0] if total else 0
-            pending_counts["dept_head"] = pending[0] if pending else 0
+            total, pending = _role_record_counts("dept_head_id", cycle_id, user["emp_id"], " and r.status = 'DEPT_HEAD_PENDING'")
+            pending_counts["dept_head_total"] = total
+            pending_counts["dept_head"] = pending
 
     return render_template(
         "dashboard.html",
@@ -366,7 +340,7 @@ def dashboard():
 
 @bp.get("/login")
 def login_page():
-    return render_template("login.html", next_url=request.args.get("next") or "/")
+    return render_template(LOGIN_TEMPLATE, next_url=request.args.get("next") or "/")
 
 
 @bp.post("/login")
@@ -375,11 +349,11 @@ def login_submit():
     password = request.form.get("password")
     next_url = request.form.get("next") or "/"
     if not username or not password:
-        return render_template("login.html", error="请输入用户名和密码", next_url=next_url), 400
+        return render_template(LOGIN_TEMPLATE, error="请输入用户名和密码", next_url=next_url), 400
 
     user = find_by_username(username)
     if user is None or user.get("status") != "ACTIVE" or not check_password_hash(user["password_hash"], password):
-        return render_template("login.html", error="用户名或密码错误", next_url=next_url), 401
+        return render_template(LOGIN_TEMPLATE, error="用户名或密码错误", next_url=next_url), 401
 
     session.clear()
     session["user_id"] = user["id"]
@@ -682,9 +656,9 @@ STAGE_STATUS_MAP = {
 
 STAGE_LABELS = {
     "self": "员工自评",
-    "direct": "直接上级评分",
-    "indirect": "间接上级审阅",
-    "dept_head": "部门负责人确认",
+    "direct": TITLE_DIRECT_REVIEW,
+    "indirect": TITLE_INDIRECT_REVIEW,
+    "dept_head": TITLE_DEPT_HEAD_CONFIRM,
     "hr": "HR 计算导出",
 }
 
