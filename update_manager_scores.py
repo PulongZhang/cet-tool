@@ -86,9 +86,9 @@ for mgr in managers:
                     print(f"   初始总评: {current_init} -> {new_init}")
 
     if updated_count == 0:
-        print(f" 所有数据已是最新，无需更新")
+        print(" 所有数据已是最新，无需更新")
 
 conn.commit()
 conn.close()
 
-print(f"\n=== 更新完成 ===")
+print("\n=== 更新完成 ===")

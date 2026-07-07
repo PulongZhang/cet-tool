@@ -77,5 +77,5 @@ for rec in records:
 conn.commit()
 conn.close()
 
-print(f"\n=== 修正完成 ===")
+print("\n=== 修正完成 ===")
 print(f"已更新: {total_updated} 条")

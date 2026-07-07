@@ -47,9 +47,9 @@ cursor.execute('''
     ORDER BY status
 ''')
 
-print(f"\n修复后的状态分布:")
+print("\n修复后的状态分布:")
 for row in cursor.fetchall():
     print(f"  {row[0]}: {row[1]} 条")
 
 conn.close()
-print(f"\n=== 修复完成 ===")
+print("\n=== 修复完成 ===")

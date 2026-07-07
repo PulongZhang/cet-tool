@@ -40,4 +40,4 @@ if missing == 0:
     print('验证通过：所有HR_PENDING记录都有final_subjective_grade数据')
 
 conn.close()
-print(f"\n=== 修复完成 ===")
+print("\n=== 修复完成 ===")
