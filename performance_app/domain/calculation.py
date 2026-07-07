@@ -63,11 +63,11 @@ def calculate_weighted_score(
         "learning": learning,
     }
     contributions = {
-        key: round(grade_to_score(value) * weights[key], 1)
+        key: round(grade_to_score(value) * weights[key], 2)
         for key, value in grades.items()
     }
     return WeightedScoreResult(
-        weighted_score=round(sum(contributions.values()), 1),
+        weighted_score=round(sum(contributions.values()), 2),
         contributions=contributions,
     )
 
