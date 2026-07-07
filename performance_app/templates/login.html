@@ -9,7 +9,7 @@
     {% if error %}<div class="dangerbox">{{ error }}</div>{% endif %}
     <form method="post" action="/login">
         <input type="hidden" name="next" value="{{ next_url }}">
-        <label>用户名 <input name="username" autocomplete="username"></label>
+        <label>用户名 <input type="text" name="username" autocomplete="username"></label>
         <label>密码 <input name="password" type="password" autocomplete="current-password"></label>
         <button type="submit" class="btn primary full">登录</button>
     </form>
