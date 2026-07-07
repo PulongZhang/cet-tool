@@ -327,8 +327,14 @@ def page_calculate():
     cycle_id = int(request.form["cycle_id"])
     user = current_page_user()
     try:
-        calculate_cycle(cycle_id, user["emp_id"], user["username"])
-        flash("计算完成！", "success")
+        result = calculate_cycle(cycle_id, user["emp_id"], user["username"])
+        calculated_count = result.get("summary", {}).get("calculated_count", 0)
+        # 确保事务已提交
+        get_db().commit()
+        if calculated_count > 0:
+            flash(f"计算完成！共计算 {calculated_count} 条记录。", "success")
+        else:
+            flash("计算完成，但没有找到需要计算的记录。请确保记录状态为'待HR处理'(HR_PENDING)。", "warning")
     except CalculationPrerequisiteError as e:
         # 显示详细的错误信息
         missing_count = len(e.missing)
